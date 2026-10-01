@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-droplet"></i> BloodLink
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/" class="btn">Home</a></li>
+                <li><a href="/register" class="btn">Register</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="form-container">
+        <div class="form-card">
+            <h2>Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+
+                <button type="submit" id="login-btn" class="btn btn-primary btn-block">Login</button>
+
+                <p class="text-center">
+                    Don't have an account? <a href="/register">Register here</a>
+                </p>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/validation.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+</body>
+</html>

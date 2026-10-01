@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Hospital Management - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+      <aside class="app-sidebar">
+        <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a><p class="sidebar-label">ADMINISTRATION</p>
+        <a class="side-link" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
+        <a class="side-link active" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
+        <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
+        <a class="side-link" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>
+        <a class="side-link" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>
+        <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a><button id="logout-btn" class="side-link side-action"><i class="fas fa-right-from-bracket"></i> Log out</button></div>
+      </aside>
+      <main class="app-main dashboard-container admin-page">
+        <div class="container">
+            <div class="page-topline"><div><span class="section-kicker">ADMINISTRATION</span><h1>User management</h1><p class="page-subtitle">Review accounts, update details, and manage verification.</p></div></div>
+            <div class="dashboard-card">
+                <div class="card-heading admin-card-heading"><div><span class="section-kicker">DIRECTORY TOOLS</span><h2>Filter accounts</h2></div></div>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="search-box" placeholder="Search by name, email, phone..." style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 5px; flex: 1; min-width: 200px;">
+                    <select id="status-filter" style="padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 5px;">
+                        <option value="">All Status</option>
+                        <option value="verified">Verified</option>
+                        <option value="unverified">Unverified</option>
+                        <option value="flagged">Flagged</option>
+                    </select>
+                    <button class="btn btn-primary" id="refresh-btn">Refresh</button>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-heading admin-card-heading"><div><span class="section-kicker">COMMUNITY</span><h2>Registered users</h2></div><span class="admin-total"><i class="fas fa-users"></i> <span id="total-count">0</span> accounts</span></div>
+                <div style="overflow-x: auto;">
+                    <table id="hospitals-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--light-color); border-bottom: 2px solid var(--border-color);">
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">ID</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Name</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Email</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Phone</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Role</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Status</th>
+                                <th style="padding: 1rem; text-align: left; border-right: 1px solid var(--border-color);">Joined</th>
+                                <th style="padding: 1rem; text-align: center;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-color);">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('delete-modal').style.display='none'">&times;</span>
+            <h2>Confirm Delete</h2>
+            <p id="delete-message"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+                <button class="btn btn-primary" id="confirm-delete-btn">Delete</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('delete-modal').style.display='none'">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" onclick="document.getElementById('edit-modal').style.display='none'">&times;</span>
+            <h2>Edit User</h2>
+            <form id="edit-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="edit-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="edit-email" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="edit-status">
+                        <option value="verified">Verified</option>
+                        <option value="unverified">Unverified</option>
+                        <option value="flagged">Flagged</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="medical-history-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="medical-history-modal-title">
+        <div class="modal-content medical-history-modal-content">
+            <button type="button" class="close modal-close-button" aria-label="Close" onclick="closeMedicalHistoryModal()">&times;</button>
+            <span class="section-kicker">PRIVATE HEALTH INFORMATION</span>
+            <h2 id="medical-history-modal-title">Medical history</h2>
+            <p id="medical-history-user" class="page-subtitle"></p>
+            <div id="admin-medical-history-content" class="medical-history-summary"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

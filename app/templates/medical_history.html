@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical History - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar">
+            <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a>
+            <p class="sidebar-label">YOUR SPACE</p>
+            <a class="side-link" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
+            <a class="side-link" href="/search"><i class="fas fa-magnifying-glass"></i> Find Donors</a>
+            <a class="side-link active" href="/medical-history"><i class="fas fa-notes-medical"></i> Medical History</a>
+            <div class="sidebar-bottom"><a class="side-link" href="/dashboard"><i class="fas fa-arrow-left"></i> Back to Dashboard</a></div>
+        </aside>
+        <main class="app-main dashboard-container medical-history-page">
+            <div class="page-topline">
+                <div><span class="section-kicker">YOUR PRIVATE HEALTH DETAILS</span><h1>Medical History</h1><p class="page-subtitle">Keep your self-reported health information together in one private place.</p></div>
+                <span class="medical-page-icon"><i class="fas fa-notes-medical"></i></span>
+            </div>
+            <div class="medical-privacy-note"><i class="fas fa-lock"></i><p><strong>Your information is private.</strong> Only you and authorized BloodLink administrators can view it. It is not shown in donor search or public profiles, and it is not used to diagnose or make medical decisions.</p></div>
+            <form id="medical-history-form" class="dashboard-card medical-history-form">
+                <div class="medical-history-fields">
+                    <div class="form-group"><label for="allergies">Allergies</label><textarea id="allergies" rows="3" placeholder="List any known allergies, or leave blank"></textarea></div>
+                    <div class="form-group"><label for="chronic_conditions">Chronic Conditions</label><textarea id="chronic_conditions" rows="3" placeholder="Share any ongoing conditions, if you choose"></textarea></div>
+                    <div class="form-group"><label for="current_medications">Current Medications</label><textarea id="current_medications" rows="3" placeholder="List current medications, if applicable"></textarea></div>
+                    <div class="form-group"><label for="previous_surgeries">Previous Surgeries</label><textarea id="previous_surgeries" rows="3" placeholder="Add previous surgeries, if applicable"></textarea></div>
+                    <div class="form-group"><label for="previous_major_illnesses">Previous Major Illnesses</label><textarea id="previous_major_illnesses" rows="3" placeholder="Share relevant previous illnesses, if applicable"></textarea></div>
+                    <div class="form-group"><label for="recent_illness">Recent Illness</label><textarea id="recent_illness" rows="3" placeholder="Share any recent illness, if applicable"></textarea></div>
+                    <div class="form-group"><label for="last_checkup_date">Last Medical Checkup</label><input id="last_checkup_date" type="date"></div>
+                    <div class="form-group"><label for="additional_notes">Additional Information</label><textarea id="additional_notes" rows="3" placeholder="Anything else you would like to note"></textarea></div>
+                </div>
+                <div class="medical-history-form-footer">
+                    <p id="medical-history-updated" class="medical-history-updated">Information is optional and self-reported.</p>
+                    <button id="save-medical-history" type="submit" class="btn btn-primary"><i class="fas fa-floppy-disk"></i> Save Medical History</button>
+                </div>
+                <div id="medical-history-message" class="message" role="status" aria-live="polite"></div>
+            </form>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/medical_history.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Management - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="app-sidebar">
+        <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a><p class="sidebar-label">ADMINISTRATION</p>
+        <a class="side-link" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
+        <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
+        <a class="side-link active" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>
+        <a class="side-link" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>
+        <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a></div>
+    </aside>
+    <main class="app-main dashboard-container admin-page">
+        <div class="page-topline"><div><span class="section-kicker">COMMUNITY MANAGEMENT</span><h1>Registered donors</h1><p class="page-subtitle">Review availability and donor contact details.</p></div></div>
+        <section class="dashboard-card">
+            <div class="card-heading admin-card-heading"><div><span class="section-kicker">DONOR DIRECTORY</span><h2>All registered donors</h2></div><span class="admin-total"><i class="fas fa-users"></i> {{ donors|length }} donors</span></div>
+            <div id="donation-message" class="message" role="alert"></div>
+            <div class="admin-table-wrap"><table>
+                <thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Email</th><th>Phone</th><th>Blood Group</th><th>City</th><th>Last Donation</th><th>Eligibility</th><th>Record Donation</th></tr></thead>
+                <tbody>{% for donor in donors %}<tr>
+                    {% set eligibility = eligibility_by_id[donor.donor_id] %}
+                    <td>{{ donor.donor_id }}</td><td><strong>{{ donor.user.name }}</strong></td><td>{{ donor.user.age or '—' }}</td><td>{{ donor.user.email }}</td><td>{{ donor.user.phone }}</td>
+                    <td><span class="donor-badge badge-blood">{{ donor.blood_group }}</span></td><td>{{ donor.city or '—' }}</td><td>{{ donor.last_donation_date or 'Never' }}</td>
+                    <td>{% if eligibility.eligible %}<span class="status-pill status-available">Eligible to Donate</span>{% elif eligibility.status == 'waiting_period' %}<span class="status-pill status-pending" title="{{ eligibility.reason }}">Eligible after {{ eligibility.eligible_after }}</span>{% else %}<span class="status-pill status-critical" title="{{ eligibility.reason }}">Not Eligible</span>{% endif %}</td>
+                    <td><button class="btn btn-primary record-donation-btn" data-donor-id="{{ donor.donor_id }}" {% if not eligibility.eligible %}disabled title="{{ eligibility.reason }}"{% endif %}>Complete donation</button></td>
+                </tr>{% else %}<tr><td colspan="10" class="table-empty">No donor profiles are registered yet.</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </section>
+    </main>
+</div>
+<script src="{{ url_for('static', filename='js/admin_donors.js') }}"></script>
+</body>
+</html>

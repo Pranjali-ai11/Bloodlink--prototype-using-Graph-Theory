@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BloodLink - Emergency Blood Donor Finder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-droplet"></i> BloodLink
+            </div>
+            <ul class="nav-menu">
+
+                <li><a href="/" class="btn btn-primary">Home</a></li>
+                <li><a href="/search" class="btn btn-primary">Find Donor</a></li>
+                <li id="auth-nav">
+                    <a href="/login" class="btn btn-primary">Login</a>
+                </li>
+                <li id="auth-nav-register">
+                    <a href="/register" class="btn btn-primary">Register</a>
+                </li>
+                <li id="user-nav" style="display:none;">
+                    <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+                </li>
+                <li id="logout-nav" style="display:none;">
+                    <button id="logout-btn" class="btn btn-primary">Logout</button>
+                </li>
+
+            </ul>
+        </div>
+    </nav>
+    <header class="hero">
+        <div class="hero-content">
+            <span class="eyebrow"><i class="fas fa-heart-pulse"></i> Every connection can save a life</span>
+            <h1 id="hero-title">Because<br><span>Every Drop Counts</span></h1>
+            <p id="hero-subtitle">BloodLink connects voluntary blood donors with people in need — quickly, safely and easily.</p>
+            <div class="hero-buttons">
+                <a href="/search" class="btn btn-primary btn-lg">Find a Donor <i class="fas fa-arrow-right"></i></a>
+                <a href="/register" class="btn btn-secondary btn-lg"><i class="fas fa-droplet"></i> Become a Donor</a>
+            </div>
+            <div class="hero-impact" aria-label="BloodLink community at a glance">
+                <div><span class="impact-symbol"><i class="fas fa-users"></i></span><strong id="home-donor-count">—</strong><span>Available donors</span></div>
+                <div><span class="impact-symbol"><i class="fas fa-droplet"></i></span><strong>8</strong><span>Blood groups supported</span></div>
+            </div>
+        </div>
+        <div class="hero-art" aria-hidden="true"><div class="hero-art-halo"></div><div class="hero-drop"><i class="fas fa-heart-pulse"></i></div><span class="hero-spark spark-one">+</span><span class="hero-spark spark-two">✳</span><span class="hero-art-caption">Give blood<br>Give hope</span></div>
+        <div class="hero-overlay"></div>
+    </header>
+    <section class="quick-search">
+        <div class="container">
+            <h2 id="quick-search-title">Start with a blood group</h2>
+            <div class="blood-groups">
+                <button class="blood-btn" data-group="O+">O+</button>
+                <button class="blood-btn" data-group="O-">O-</button>
+                <button class="blood-btn" data-group="A+">A+</button>
+                <button class="blood-btn" data-group="A-">A-</button>
+                <button class="blood-btn" data-group="B+">B+</button>
+                <button class="blood-btn" data-group="B-">B-</button>
+                <button class="blood-btn" data-group="AB+">AB+</button>
+                <button class="blood-btn" data-group="AB-">AB-</button>
+            </div>
+        </div>
+    </section>
+    <section class="features">
+        <div class="container">
+            <p class="section-kicker">Care that brings people together</p>
+            <h2 id="features-title">A simpler way to find help</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <i class="fas fa-map-location-dot"></i>
+                    <h3 id="feature-1-title">Location Based</h3>
+                    <p id="feature-1-desc">Find nearest donors instantly using GPS technology</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-bolt"></i>
+                    <h3 id="feature-2-title">Real-time Updates</h3>
+                    <p id="feature-2-desc">Get instant notifications about donor availability</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-lock"></i>
+                    <h3 id="feature-3-title">Secure & Private</h3>
+                    <p id="feature-3-desc">Your data is protected and verified</p>
+                </div>
+                <div class="feature-card">
+                    <i class="fas fa-users"></i>
+                    <h3 id="feature-4-title">Community Driven</h3>
+                    <p id="feature-4-desc">Join thousands of donors helping save lives</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="cta">
+        <div class="container">
+            <h2 id="cta-title">Join Our Community of Life Savers</h2>
+            <p id="cta-subtitle">Register as a donor and help save lives in your community</p>
+            <a href="/register" class="btn btn-primary btn-lg">Register Now</a>
+        </div>
+    </section>
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 BloodLink. All rights reserved.</p>
+            <p>Emergency Blood Donor Finder Platform</p>
+        </div>
+    </footer>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/search.js') }}"></script>
+</body>
+</html>

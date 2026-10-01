@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar">
+            <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a>
+            <p class="sidebar-label">YOUR SPACE</p>
+            <a class="side-link active" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
+            <a class="side-link" href="/search"><i class="fas fa-magnifying-glass"></i> Find Donors</a>
+            <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
+            <a class="side-link" href="/medical-history"><i class="fas fa-notes-medical"></i> Medical History</a>
+            <button id="create-request-btn" class="side-link side-action"><i class="fas fa-hand-holding-medical"></i> Request Blood</button>
+            <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a><button id="logout-btn" class="side-link side-action"><i class="fas fa-right-from-bracket"></i> Log out</button></div>
+        </aside>
+        <main class="app-main dashboard-container">
+        <div class="page-topline"><div><span class="section-kicker">YOUR BLOODLINK</span><h1>Welcome, <span id="user-name">there</span> <span class="wave">✋</span></h1><p class="page-subtitle">Your kindness makes a difference. Here’s your donor activity.</p></div><div class="topline-actions"><a href="/" class="quiet-link">bloodlink.org</a></div></div>
+            <div class="dashboard-overview">
+            <div class="user-info-card">
+                <div class="user-avatar"><i class="fas fa-user"></i></div><div class="user-welcome"><h2 id="welcome-name">Your donor profile</h2><p id="user-email"></p></div>
+                <span class="profile-note"><i class="fas fa-shield-heart"></i> Your impact starts here</span>
+            </div>
+            <div id="donor-section" class="dashboard-card" style="display:none;">
+                <div class="card-heading"><div><span class="section-kicker">YOUR PROFILE</span><h2>Donor details</h2></div><span class="profile-blood"><i class="fas fa-droplet"></i> <span id="donor-blood-group"></span></span></div>
+                <div class="donor-info">
+                    <p><strong>Age:</strong> <span id="donor-age"></span></p>
+                    <p><strong>Location:</strong> <span id="donor-location"></span></p>
+                    <p><strong>Availability:</strong> <span id="donor-availability" class="status-pill"></span></p>
+                    <p><strong>Total Donations:</strong> <span id="donor-count"></span></p>
+                    <p><strong>Last Donation:</strong> <span id="last-donation"></span></p>
+                    <p><strong>Eligibility:</strong> <span id="eligibility-status" class="status-pill"></span></p>
+                </div>
+                <p id="eligibility-reason" class="eligibility-reason"></p>
+                <div class="age-update-area">
+                    <button id="edit-age-btn" type="button" class="btn btn-secondary">Update age</button>
+                    <form id="age-update-form" class="age-update-form" hidden>
+                        <div class="form-group"><label for="profile-age">Confirm your age</label><input id="profile-age" type="number" min="0" step="1" inputmode="numeric" required><small class="field-help">We need your age to verify donor eligibility. Blood donors must be at least 18.</small></div>
+                        <button type="submit" class="btn btn-primary">Save age</button>
+                    </form>
+                    <div id="age-update-message" class="message" role="alert"></div>
+                </div>
+                <button id="toggle-availability-btn" class="btn btn-secondary"><i class="fas fa-arrows-rotate"></i> Update availability</button>
+                <div id="availability-message" class="message" role="alert"></div>
+            </div>
+            </div>
+            <a class="medical-history-teaser" href="/medical-history">
+                <span class="medical-history-teaser-icon"><i class="fas fa-notes-medical"></i></span>
+                <span class="medical-history-teaser-copy"><strong>Your Medical History</strong><small>Private, self-reported information for your account.</small></span>
+                <span id="medical-history-updated-indicator" class="status-pill status-normal">Checking status…</span>
+                <i class="fas fa-arrow-right medical-history-teaser-arrow"></i>
+            </a>
+            <div class="section-heading"><div><span class="section-kicker">OVERVIEW</span><h2>Your activity</h2></div></div>
+            <div class="dashboard-card stats-card">
+                <div class="stats-grid">
+                    <div class="stat"><span class="stat-icon tint-red"><i class="fas fa-users"></i></span><div><h3 id="stat-donors">0</h3><p>Available donors</p></div></div>
+                    <div class="stat"><span class="stat-icon tint-blue"><i class="fas fa-heart-pulse"></i></span><div><h3 id="stat-requests">0</h3><p>Active requests</p></div></div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-heading"><div><span class="section-kicker">STAY IN THE LOOP</span><h2>Recent blood requests</h2></div><button id="request-shortcut" class="btn btn-primary" onclick="document.getElementById('create-request-btn').click()"><i class="fas fa-plus"></i> New request</button></div>
+                <div id="requests-list" class="requests-list">
+
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+    <div id="request-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create Blood Request</h2>
+            <form id="create-request-form">
+                <div class="form-group">
+                    <label>Blood Group Needed</label>
+                    <select id="request-blood-group" required>
+                        <option value="">Select Blood Group</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Location</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="request-location" required placeholder="Hospital address or location name">
+                        <button type="button" id="get-current-location-btn" class="btn btn-secondary" style="white-space: nowrap; padding: 0.75rem 1rem;">📍 Use Live Location</button>
+                    </div>
+                    <div id="location-status" style="font-size: 0.85rem; color: var(--text-color); margin-top: 0.5rem; display: none;"></div>
+                </div>
+
+                <div class="form-group" style="display: none;" id="coordinates-group">
+                    <label>Coordinates</label>
+                    <input type="text" id="request-coords" readonly placeholder="Latitude, Longitude">
+                </div>
+
+                <div class="form-group">
+                    <label>Urgency Level</label>
+                    <select id="request-urgency">
+                        <option value="normal">Normal</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Create Request</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

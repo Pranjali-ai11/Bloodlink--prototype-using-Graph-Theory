@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BloodLink Network</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></head>
+<body><div class="app-layout"><aside class="app-sidebar">
+<a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a>
+<p class="sidebar-label">{{ 'ADMINISTRATION' if is_admin else 'YOUR SPACE' }}</p>
+<a class="side-link" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
+<a class="side-link" href="/search"><i class="fas fa-magnifying-glass"></i> Find Donors</a>
+<a class="side-link active" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
+{% if is_admin %}<a class="side-link" href="/admin/donors"><i class="fas fa-users"></i> Donors</a><a class="side-link" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>{% endif %}
+<div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a><button id="logout-btn" class="side-link side-action"><i class="fas fa-right-from-bracket"></i> Log out</button></div>
+</aside><main class="app-main dashboard-container network-page">
+<div class="page-topline"><div><span class="section-kicker">GRAPH-BASED MATCHING</span><h1>BloodLink Network</h1><p class="page-subtitle">Explore compatible groups, donor matches, hospitals and blood banks in one network view.</p></div></div>
+<section class="dashboard-card network-controls"><div class="network-request-control"><label for="network-request">Blood request</label><select id="network-request">{% for item in blood_requests %}<option value="{{ item.request_id }}" {% if loop.first %}selected{% endif %}>#{{ item.request_id }} · {{ item.blood_group }} · {{ item.urgency_level|title }} · {{ item.location or 'Location not provided' }}</option>{% else %}<option value="">No active requests available</option>{% endfor %}</select></div>
+<p class="network-note">{% if is_admin %}Administrators can review every active request.{% else %}Only active requests you own are shown here.{% endif %}</p></section>
+<div id="network-message" class="network-message" role="status">Loading network…</div>
+<section class="network-stats"><div class="network-stat"><span>Blood groups</span><strong id="network-group-count">8</strong></div><div class="network-stat"><span>Available eligible matches</span><strong id="network-donor-count">—</strong></div><div class="network-stat"><span>Graph connections</span><strong id="network-edge-count">—</strong></div></section>
+<section class="dashboard-card network-graph-card"><div class="card-heading"><div><span class="section-kicker">ADJACENCY GRAPH</span><h2>Request connections</h2></div><span class="network-legend"><i></i> ranked compatible donor</span></div>
+<p class="network-note">Request location nodes use request coordinates. Facility records are displayed separately and do not imply a confirmed route.</p>
+<div class="network-visual-wrap"><svg id="network-visual" role="img" aria-label="Blood request and compatible donor network"></svg></div><div class="network-group-list" id="network-groups"></div></section>
+
+<section class="dashboard-card network-hasse-card"><div class="card-heading"><div><span class="section-kicker">COMPATIBILITY PARTIAL ORDER</span><h2>Blood-group Hasse diagram</h2></div></div>
+<p class="network-note">Cover edges are computed from BloodLink's compatibility relation. O− is minimal and AB+ is maximal when the relation forms the expected order.</p>
+<div class="network-visual-wrap hasse-wrap"><svg id="hasse-svg" role="img" aria-label="Blood group compatibility Hasse diagram"></svg></div>
+<p id="hasse-status" class="network-note">Loading compatibility partial-order checks…</p></section>
+<section class="dashboard-card"><div class="card-heading"><div><span class="section-kicker">BREADTH FIRST SEARCH</span><h2>Compatible donor matches</h2></div></div><p id="network-ranking-summary" class="network-note">Ranked using blood-group compatibility, shortest Dijkstra distance, reliability and request urgency.</p><div id="network-donors" class="network-donor-list"></div></section>
+<section class="dashboard-card network-assignments-card"><div class="card-heading"><div><span class="section-kicker">GLOBAL MATCHING</span><h2>Assignments</h2></div><button id="refresh-assignments" type="button" class="btn btn-secondary">Refresh assignments</button></div>
+<p class="network-note">The Kuhn matcher assigns each available donor to at most one active request and processes critical requests first.</p>
+<div id="network-assignments" class="network-assignment-list"><p class="network-empty">Loading assignments…</p></div></section>
+
+<section class="dashboard-card facility-directory">
+ <div class="card-heading"><div><span class="section-kicker">FACILITY DIRECTORY</span><h2>Hospitals</h2></div></div>
+ <p class="network-note">Facility contact details are directory records. Confirm details directly with the facility.</p>
+ <div id="hospital-directory" class="facility-list"><p class="network-empty">Loading hospitals…</p></div>
+</section>
+<section class="dashboard-card facility-directory">
+ <div class="card-heading"><div><span class="section-kicker">BLOOD BANK DIRECTORY</span><h2>Blood banks &amp; recorded inventory</h2></div></div>
+ <p class="facility-demo-notice">Sample/demo inventory is illustrative and is not live blood availability.</p>
+ <div id="blood-bank-directory" class="facility-list"><p class="network-empty">Loading blood banks…</p></div>
+</section>
+<section class="dashboard-card network-algorithm-card"><div><span class="section-kicker">SHORTEST ROUTE</span><h2>Dijkstra distance</h2></div><p id="network-route-summary">Select a request to calculate routes.</p><p class="network-note">Distances use saved coordinates and Haversine distance: straight-line distance, not road directions.</p>
+<details><summary>How the graph works</summary><ul><li>Blood-group edges point from donor group to compatible recipient group and reuse BloodLink's existing rules.</li><li>BFS discovers available and eligible donors in O(V + E).</li><li>Dijkstra uses weighted location edges and a min-heap in O((V + E) log V).</li><li>Find Donors and Network use the same backend rank, normalized match score and Dijkstra distance.</li></ul></details></section>
+</main></div><script src="{{ url_for('static', filename='js/network.js') }}"></script></body></html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Request Management - BloodLink</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="app-sidebar">
+        <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a><p class="sidebar-label">ADMINISTRATION</p>
+        <a class="side-link" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
+        <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
+        <a class="side-link" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>
+        <a class="side-link active" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>
+        <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a></div>
+    </aside>
+    <main class="app-main dashboard-container admin-page">
+        <div class="page-topline"><div><span class="section-kicker">COMMUNITY MANAGEMENT</span><h1>Blood requests</h1><p class="page-subtitle">Track incoming requests and their current status.</p></div></div>
+        <section class="dashboard-card">
+            <div class="card-heading admin-card-heading"><div><span class="section-kicker">REQUEST ACTIVITY</span><h2>All blood requests</h2></div><span class="admin-total"><i class="fas fa-heart-pulse"></i> {{ requests|length }} requests</span></div>
+            <div class="admin-table-wrap"><table>
+                <thead><tr><th>Request ID</th><th>Blood Group</th><th>Urgency</th><th>Location</th><th>Status</th></tr></thead>
+                <tbody>{% for req in requests %}<tr>
+                    <td><strong>#{{ req.request_id }}</strong></td><td><span class="donor-badge badge-blood">{{ req.blood_group }}</span></td>
+                    <td><span class="status-pill {% if req.urgency_level == 'critical' %}status-critical{% elif req.urgency_level == 'urgent' %}status-pending{% else %}status-normal{% endif %}">{{ req.urgency_level|title }}</span></td>
+                    <td>{{ req.location }}</td><td><span class="status-pill {% if req.status == 'fulfilled' %}status-available{% else %}status-pending{% endif %}">{{ req.status|title }}</span></td>
+                </tr>{% else %}<tr><td colspan="5" class="table-empty">There are no blood requests to show yet.</td></tr>{% endfor %}</tbody>
+            </table></div>
+        </section>
+    </main>
+</div>
+</body>
+</html>
