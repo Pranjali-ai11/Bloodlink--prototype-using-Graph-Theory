@@ -1,0 +1,13 @@
+<li class="language-nav-item">
+    <div class="bloodlink-language">
+        <label for="bloodlink-language-select"><span aria-hidden="true">🌐</span> Language</label>
+        <select id="bloodlink-language-select" aria-label="Choose language">
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="mr">मराठी</option>
+            <option value="kn">ಕನ್ನಡ</option>
+        </select>
+    </div>
+    <div id="google_translate_element" aria-hidden="true"></div>
+    <script src="{{ url_for('static', filename='js/translation.js') }}" defer></script>
+</li>

@@ -1,0 +1,17 @@
+<nav class="navbar" aria-label="Main navigation">
+    <div class="container">
+        <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div>
+        <ul class="nav-menu">
+            <li><a href="/" class="btn">Home</a></li>
+            <li><a href="/search" class="btn">Find Donor</a></li>
+            {% if session.get('user_id') %}
+                <li><a href="/dashboard" class="btn">Dashboard</a></li>
+                <li><button type="button" class="btn" data-logout>Logout</button></li>
+            {% else %}
+                <li><a href="/register" class="btn">Register</a></li>
+                <li><a href="/login" class="btn">Login</a></li>
+            {% endif %}
+            {% include "_language_selector.html" %}
+        </ul>
+    </div>
+</nav>

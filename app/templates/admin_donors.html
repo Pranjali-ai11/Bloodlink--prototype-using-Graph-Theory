@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
+    {% include "_navbar.html" %}
 <div class="app-layout">
     <aside class="app-sidebar">
-        <a class="nav-brand" href="/"><i class="fas fa-droplet"></i> BloodLink</a><p class="sidebar-label">ADMINISTRATION</p>
+        <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div><p class="sidebar-label">ADMINISTRATION</p>
         <a class="side-link" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
         <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
         <a class="side-link active" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>

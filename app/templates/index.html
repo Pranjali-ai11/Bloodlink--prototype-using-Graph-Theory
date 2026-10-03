@@ -8,31 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-brand">
-                <i class="fas fa-droplet"></i> BloodLink
-            </div>
-            <ul class="nav-menu">
-
-                <li><a href="/" class="btn btn-primary">Home</a></li>
-                <li><a href="/search" class="btn btn-primary">Find Donor</a></li>
-                <li id="auth-nav">
-                    <a href="/login" class="btn btn-primary">Login</a>
-                </li>
-                <li id="auth-nav-register">
-                    <a href="/register" class="btn btn-primary">Register</a>
-                </li>
-                <li id="user-nav" style="display:none;">
-                    <a href="/dashboard" class="btn btn-primary">Dashboard</a>
-                </li>
-                <li id="logout-nav" style="display:none;">
-                    <button id="logout-btn" class="btn btn-primary">Logout</button>
-                </li>
-
-            </ul>
-        </div>
-    </nav>
+    {% include "_navbar.html" %}
     <header class="hero">
         <div class="hero-content">
             <span class="eyebrow"><i class="fas fa-heart-pulse"></i> Every connection can save a life</span>
