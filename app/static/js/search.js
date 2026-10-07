@@ -117,6 +117,21 @@ async function performSearch() {
 
         if (response.ok) {
             displayDonors(data.donors || []);
+            const [banksResult, hospitalsResult] = await Promise.allSettled([
+                fetch(`${API_BASE}/api/blood-banks`).then(async result => {
+                    if (!result.ok) throw new Error('Blood-bank directory request failed');
+                    return result.json();
+                }),
+                fetch(`${API_BASE}/api/hospitals`).then(async result => {
+                    if (!result.ok) throw new Error('Hospital directory request failed');
+                    return result.json();
+                })
+            ]);
+            const banks = banksResult.status === 'fulfilled'
+                ? banksResult.value.blood_banks || [] : null;
+            const hospitals = hospitalsResult.status === 'fulfilled'
+                ? hospitalsResult.value.hospitals || [] : null;
+            displayFacilityResults(banks, hospitals, bloodGroup, userLat, userLng, radius);
         } else {
             alert('Search failed: ' + (data.error || 'Unknown error'));
         }
@@ -142,6 +157,137 @@ function formatRankValue(value, decimals = 0) {
     return Number.isFinite(number) ? number.toFixed(decimals) : 'N/A';
 }
 
+function coordinatesFor(location) {
+    if (location.latitude === null || location.latitude === undefined ||
+        location.longitude === null || location.longitude === undefined) return null;
+    const latitude = Number(location.latitude);
+    const longitude = Number(location.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+        latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+    return { latitude, longitude };
+}
+
+function distanceBetween(lat1, lon1, lat2, lon2) {
+    const radians = degrees => degrees * Math.PI / 180;
+    const latitudeDelta = radians(lat2 - lat1);
+    const longitudeDelta = radians(lon2 - lon1);
+    const arc = Math.sin(latitudeDelta / 2) ** 2 +
+        Math.cos(radians(lat1)) * Math.cos(radians(lat2)) *
+        Math.sin(longitudeDelta / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(arc), Math.sqrt(1 - arc));
+}
+
+function createSearchMarkerIcon(type) {
+    const icons = { donor: 'fa-user', bloodBank: 'fa-droplet', hospital: 'fa-hospital' };
+    return L.divIcon({
+        className: 'search-marker-wrapper',
+        html: `<span class="search-marker search-marker-${type}"><i class="fas ${icons[type]}"></i></span>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
+        popupAnchor: [0, -18]
+    });
+}
+
+function addSearchMarker(location, type, popup) {
+    const coordinates = coordinatesFor(location);
+    if (!coordinates || !map || !window.L) return;
+    const marker = L.marker([coordinates.latitude, coordinates.longitude], {
+        icon: createSearchMarkerIcon(type)
+    }).bindPopup(popup).addTo(map);
+    markers.push(marker);
+}
+
+function renderEmptyResult(element, message) {
+    if (!element) return;
+    const empty = document.createElement('div');
+    empty.className = 'no-results';
+    empty.textContent = message;
+    element.replaceChildren(empty);
+}
+
+function renderFacilityCard(element, facility, type, bloodGroup, distance) {
+    if (!element) return;
+    const card = document.createElement('article');
+    card.className = 'facility-card';
+    const typeLabel = type === 'bloodBank' ? 'Blood Bank' : 'Hospital';
+    const heading = document.createElement('h3');
+    heading.textContent = facility.name || typeLabel;
+    const badge = document.createElement('span');
+    badge.className = `facility-type facility-type-${type}`;
+    badge.textContent = typeLabel;
+    const group = document.createElement('p');
+    group.innerHTML = `<strong>Blood group:</strong> <span class="donor-badge badge-blood">${escapeHtml(bloodGroup)}</span>`;
+    const units = document.createElement('p');
+    units.innerHTML = `<strong>Available units:</strong> ${escapeHtml(facility.units)}`;
+    const address = document.createElement('p');
+    address.innerHTML = `<strong>Address:</strong> ${escapeHtml([facility.address, facility.city].filter(Boolean).join(', ') || 'Not provided')}`;
+    const distanceRow = document.createElement('p');
+    distanceRow.innerHTML = `<strong>Distance:</strong> ${distance === null ? 'Unavailable' : `${distance.toFixed(2)} km`}`;
+    card.append(heading, badge, group, units, address, distanceRow);
+    if (facility.is_demo) {
+        const demo = document.createElement('p');
+        demo.className = 'facility-demo-note';
+        demo.textContent = 'Demo inventory; not live availability.';
+        card.appendChild(demo);
+    }
+    element.appendChild(card);
+
+    const popup = `<b>${escapeHtml(facility.name || typeLabel)}</b><br>` +
+        `Type: ${typeLabel}<br>Blood group: ${escapeHtml(bloodGroup)}<br>` +
+        `Available units: ${escapeHtml(facility.units)}<br>` +
+        `Address: ${escapeHtml([facility.address, facility.city].filter(Boolean).join(', ') || 'Not provided')}<br>` +
+        `Distance: ${distance === null ? 'Unavailable' : `${distance.toFixed(2)} km`}`;
+    addSearchMarker(facility, type, popup);
+}
+
+function displayFacilityResults(banks, hospitals, bloodGroup, userLat, userLng, radius) {
+    const banksList = document.getElementById('blood-banks-list');
+    const hospitalsList = document.getElementById('hospitals-list');
+    if (banksList) banksList.replaceChildren();
+    if (hospitalsList) hospitalsList.replaceChildren();
+
+    if (banks === null) {
+        renderEmptyResult(banksList, 'Blood-bank results could not be loaded.');
+    } else {
+        const matches = banks.flatMap(bank => {
+            const inventory = (bank.inventory || []).find(item =>
+                item.blood_group === bloodGroup && Number(item.units) > 0
+            );
+            if (!inventory) return [];
+            const coordinates = coordinatesFor(bank);
+            const distance = coordinates
+                ? distanceBetween(userLat, userLng, coordinates.latitude, coordinates.longitude)
+                : null;
+            if (distance !== null && distance > radius) return [];
+            return [{
+                ...bank,
+                units: Number(inventory.units),
+                is_demo: Boolean(bank.is_demo || inventory.is_demo),
+                distance
+            }];
+        });
+        if (matches.length === 0) {
+            renderEmptyResult(banksList, 'No matching blood available at nearby blood banks.');
+        } else {
+            matches.forEach(bank => renderFacilityCard(
+                banksList, bank, 'bloodBank', bloodGroup, bank.distance
+            ));
+        }
+    }
+
+    if (hospitals === null) {
+        renderEmptyResult(hospitalsList, 'Hospital results could not be loaded.');
+    } else {
+        renderEmptyResult(hospitalsList, 'No matching blood available at nearby hospitals.');
+    }
+
+    const locatedMarkers = markers.filter(marker => map?.hasLayer(marker));
+    if (locatedMarkers.length && map) {
+        const bounds = L.featureGroup(locatedMarkers).getBounds();
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 13 });
+    }
+}
+
 function displayDonors(donors) {
     const donorsList = document.getElementById('donors-list');
     if (!donorsList) return;
@@ -154,7 +300,7 @@ function displayDonors(donors) {
         const empty = document.createElement('div');
         empty.className = 'no-results';
         const heading = document.createElement('p');
-        heading.textContent = 'No eligible donors found in this area';
+        heading.textContent = 'No matching blood available at nearby donors.';
         const explanation = document.createElement('small');
         explanation.textContent = 'Donors appear after confirming they meet the age and donation waiting-period requirements.';
         empty.append(heading, explanation);
@@ -257,14 +403,12 @@ function displayDonors(donors) {
             donor.longitude !== null && donor.longitude !== undefined &&
             Number.isFinite(latitude) && Number.isFinite(longitude) && map && window.L) {
             const popup = '<b>' + escapeHtml(donor.name || 'Donor') + '</b><br>' +
+                'Type: Donor<br>' +
                 'Rank: #' + rank + '<br>' +
-                'Match Score: ' + score + '<br>' +
-                'Blood: ' + escapeHtml(donor.blood_group || 'N/A') + '<br>' +
+                'Blood group: ' + escapeHtml(donor.blood_group || 'N/A') + '<br>' +
+                'Address: ' + escapeHtml([donor.address, donor.city].filter(Boolean).join(', ') || 'Not provided') + '<br>' +
                 'Distance: ' + (distance === 'N/A' ? 'N/A' : distance + ' km');
-            const marker = L.marker([latitude, longitude])
-                .bindPopup(popup)
-                .addTo(map);
-            markers.push(marker);
+            addSearchMarker(donor, 'donor', popup);
         }
     });
 }

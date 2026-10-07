@@ -19,7 +19,8 @@ const registerForm = document.getElementById('register-form');
 if (registerForm) {
     registerForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        const isFormValid = validateFormBeforeSubmit('register-form', [
+        const role = document.getElementById('role').value;
+        const requiredFields = [
             { id: 'name', validate: null },
             { id: 'email', validate: validateEmail },
             { id: 'phone', validate: validatePhone },
@@ -29,7 +30,8 @@ if (registerForm) {
             { id: 'password', validate: validatePassword },
             { id: 'confirm_password', validate: null },
             { id: 'role', validate: null }
-        ]);
+        ].filter(field => field.id !== 'blood_group' || role === 'donor');
+        const isFormValid = validateFormBeforeSubmit('register-form', requiredFields);
         
         if (!isFormValid) {
             showMessage(document.getElementById('message'), 'Please fix the errors above', 'error');
@@ -41,7 +43,6 @@ if (registerForm) {
         const phone = document.getElementById('phone').value;
         const password = document.getElementById('password').value;
         const confirmPassword = document.getElementById('confirm_password').value;
-        const role = document.getElementById('role').value;
         const gender = document.getElementById('gender').value;
         const age = Number(document.getElementById('age').value);
         

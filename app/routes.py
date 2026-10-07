@@ -6,6 +6,16 @@ from .models import (db, User, Donor, BloodRequest, Report, MedicalHistory,
 from .utils import find_nearby_donors, geocode_address
 from .eligibility import is_donor_eligible
 from .graph_service import build_network_data, compatibility_order_data
+from .dm_analytics import (
+    build_full_network_graph, bfs_traversal, dfs_traversal,
+    dijkstra_shortest_path, dijkstra_nearest_sources,
+    set_theory_donor_filter, set_theory_bloodbank_filter,
+    find_connected_components, compute_vertex_degrees,
+    build_adjacency_matrix, pigeonhole_analysis, donor_combinations,
+    cardinality_stats, propositional_eligibility_check,
+    ranked_blood_sources, emergency_connectivity_check,
+    full_graph_statistics, dm_documentation, get_compatibility_relation,
+)
 from .matching_service import assign_donors
 from sqlalchemy.orm import joinedload, selectinload
 from functools import wraps
@@ -526,6 +536,7 @@ def search():
                 'email': donor.user.email,
                 'age': donor.user.age,
                 'city': donor.city,
+                'address': donor.address,
                 'blood_group': donor.blood_group,
                 'latitude': donor.latitude,
                 'longitude': donor.longitude,
@@ -1004,3 +1015,276 @@ def create_report():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+# =========================================================================
+# Discrete Mathematics Analytics API endpoints
+# =========================================================================
+
+@search_bp.route('/dm/stats', methods=['GET'])
+def dm_graph_stats():
+    """Full graph statistics: vertices, edges, components, degrees, cardinality."""
+    try:
+        return jsonify(full_graph_statistics()), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/bfs/<path:start_node>', methods=['GET'])
+def dm_bfs(start_node):
+    """BFS traversal from a given node (e.g. donor:1, hospital:2)."""
+    try:
+        graph, nodes_info = build_full_network_graph(radius_km=50.0)
+        order, levels = bfs_traversal(graph, start_node)
+        return jsonify({
+            'start': start_node,
+            'traversal_order': order,
+            'levels': levels,
+            'total_reached': len(order),
+            'dm_concept': 'BFS — Breadth-First Search O(V+E)',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/dfs/<path:start_node>', methods=['GET'])
+def dm_dfs(start_node):
+    """DFS traversal from a given node."""
+    try:
+        graph, nodes_info = build_full_network_graph(radius_km=50.0)
+        order = dfs_traversal(graph, start_node)
+        return jsonify({
+            'start': start_node,
+            'traversal_order': order,
+            'total_reached': len(order),
+            'dm_concept': 'DFS — Depth-First Search O(V+E)',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/shortest-path', methods=['GET'])
+def dm_shortest_path():
+    """Dijkstra shortest path between two nodes. Query params: start, goal."""
+    try:
+        start = request.args.get('start')
+        goal = request.args.get('goal')
+        if not start or not goal:
+            return jsonify({'error': 'start and goal query params required'}), 400
+        graph, _ = build_full_network_graph(radius_km=100.0)
+        distance, path = dijkstra_shortest_path(graph, start, goal)
+        return jsonify({
+            'start': start,
+            'goal': goal,
+            'distance_km': distance,
+            'path': path,
+            'path_length': len(path),
+            'dm_concept': "Dijkstra's Algorithm — O((V+E) log V)",
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/nearest-sources/<path:start_node>', methods=['GET'])
+def dm_nearest_sources(start_node):
+    """Find nearest sources from a node, optionally filtered by type."""
+    try:
+        target_type = request.args.get('type')  # donor, hospital, blood_bank
+        graph, nodes_info = build_full_network_graph(radius_km=100.0)
+        sources = dijkstra_nearest_sources(graph, start_node, nodes_info, target_type)
+        return jsonify({
+            'start': start_node,
+            'filter_type': target_type,
+            'nearest_sources': sources[:20],
+            'total_found': len(sources),
+            'dm_concept': 'Dijkstra single-source shortest paths',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/set-filter/donors', methods=['GET'])
+def dm_set_filter_donors():
+    """Filter donors using set theory operations."""
+    try:
+        blood_group = request.args.get('blood_group')
+        lat = request.args.get('latitude', type=float)
+        lon = request.args.get('longitude', type=float)
+        radius = request.args.get('radius_km', 10.0, type=float)
+        if not blood_group or lat is None or lon is None:
+            return jsonify({'error': 'blood_group, latitude, longitude required'}), 400
+        result = set_theory_donor_filter(blood_group, lat, lon, radius)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/set-filter/blood-banks', methods=['GET'])
+def dm_set_filter_banks():
+    """Filter blood banks using set theory operations."""
+    try:
+        blood_group = request.args.get('blood_group')
+        lat = request.args.get('latitude', type=float)
+        lon = request.args.get('longitude', type=float)
+        radius = request.args.get('radius_km', 50.0, type=float)
+        if not blood_group:
+            return jsonify({'error': 'blood_group required'}), 400
+        result = set_theory_bloodbank_filter(blood_group, lat, lon, radius)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/connectivity/<int:request_id>', methods=['GET'])
+def dm_connectivity(request_id):
+    """Check if a blood request is connected to any suitable source."""
+    try:
+        result = emergency_connectivity_check(request_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/adjacency-matrix', methods=['GET'])
+def dm_adjacency_matrix():
+    """Return the adjacency matrix of the BloodLink network graph."""
+    try:
+        graph, _ = build_full_network_graph(radius_km=50.0)
+        matrix = build_adjacency_matrix(graph)
+        return jsonify({
+            'adjacency_matrix': matrix,
+            'dm_concept': 'Adjacency Matrix — dense graph representation',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/degrees', methods=['GET'])
+def dm_degrees():
+    """Return the degree of each vertex in the graph."""
+    try:
+        graph, nodes_info = build_full_network_graph(radius_km=50.0)
+        degrees = compute_vertex_degrees(graph)
+        # Enrich with node info
+        enriched = []
+        for node, deg in sorted(degrees.items(), key=lambda x: x[1], reverse=True):
+            info = nodes_info.get(node, {})
+            enriched.append({
+                'node_id': node, 'degree': deg,
+                'type': info.get('type'), 'name': info.get('name'),
+            })
+        return jsonify({
+            'degrees': enriched,
+            'total_vertices': len(degrees),
+            'dm_concept': 'Degree of Vertex — number of incident edges',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/components', methods=['GET'])
+def dm_components():
+    """Return the connected components of the graph."""
+    try:
+        graph, nodes_info = build_full_network_graph(radius_km=50.0)
+        components = find_connected_components(graph)
+        comp_data = []
+        for i, comp in enumerate(components):
+            comp_data.append({
+                'component_id': i + 1,
+                'size': len(comp),
+                'nodes': comp,
+            })
+        return jsonify({
+            'total_components': len(components),
+            'is_connected': len(components) <= 1,
+            'components': comp_data,
+            'dm_concept': 'Graph Connectivity — connected components via BFS',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/pigeonhole', methods=['GET'])
+def dm_pigeonhole():
+    """Pigeonhole Principle analysis of requests vs available sources."""
+    try:
+        result = pigeonhole_analysis()
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/combinations', methods=['GET'])
+def dm_combinations():
+    """Calculate possible donor combinations for multi-unit requests."""
+    try:
+        blood_group = request.args.get('blood_group')
+        units = request.args.get('units_needed', 2, type=int)
+        lat = request.args.get('latitude', 0, type=float)
+        lon = request.args.get('longitude', 0, type=float)
+        radius = request.args.get('radius_km', 50.0, type=float)
+        if not blood_group:
+            return jsonify({'error': 'blood_group required'}), 400
+        result = donor_combinations(blood_group, units, lat, lon, radius)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/cardinality', methods=['GET'])
+def dm_cardinality():
+    """Cardinality/counting statistics from the database."""
+    try:
+        return jsonify(cardinality_stats()), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/eligibility/<int:donor_id>', methods=['GET'])
+def dm_eligibility(donor_id):
+    """Propositional logic evaluation for a donor's eligibility."""
+    try:
+        result = propositional_eligibility_check(donor_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/ranking', methods=['GET'])
+def dm_ranking():
+    """Graph-based ranking of blood sources for a request."""
+    try:
+        blood_group = request.args.get('blood_group')
+        lat = request.args.get('latitude', type=float)
+        lon = request.args.get('longitude', type=float)
+        radius = request.args.get('radius_km', 50.0, type=float)
+        if not blood_group or lat is None or lon is None:
+            return jsonify({'error': 'blood_group, latitude, longitude required'}), 400
+        result = ranked_blood_sources(blood_group, lat, lon, radius)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/compatibility', methods=['GET'])
+def dm_compatibility():
+    """Blood compatibility relation as a set of (donor, recipient) pairs."""
+    try:
+        relation = get_compatibility_relation()
+        return jsonify({
+            'relation': [{'donor_group': d, 'recipient_group': r} for d, r in sorted(relation)],
+            'total_pairs': len(relation),
+            'dm_concept': 'Relation — R = {(d, r) | d can donate to r}',
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@search_bp.route('/dm/documentation', methods=['GET'])
+def dm_docs():
+    """Academic documentation mapping each DM concept to BloodLink."""
+    try:
+        return jsonify(dm_documentation()), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
