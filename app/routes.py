@@ -809,17 +809,22 @@ def get_users():
     """Get all users (admin only)"""
     try:
         page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
         role = request.args.get('role')
+        page = max(page, 1)
+        per_page = min(max(per_page, 1), 100)
         
         from sqlalchemy import or_
 
         query = User.query.filter(
-    or_(User.role == 'donor', User.role == 'seeker')
-)
+            or_(User.role == 'donor', User.role == 'seeker')
+        )
         if role:
             query = query.filter_by(role=role)
         
-        users = query.paginate(page=page, per_page=10)
+        users = query.order_by(User.user_id.desc()).paginate(
+            page=page, per_page=per_page
+        )
         
         return jsonify({
             'users': [u.to_dict() for u in users.items],

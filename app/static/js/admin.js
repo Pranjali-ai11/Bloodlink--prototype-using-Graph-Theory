@@ -84,9 +84,9 @@ function renderTable(users) {
                 ${new Date(user.created_at).toLocaleDateString()}
             </td>
             <td style="padding: 1rem; text-align: center;">
-                <button class="btn btn-secondary" style="padding: 0.5rem 0.8rem; font-size: 0.9rem; margin-right: 0.25rem;" onclick="viewMedicalHistory(${user.user_id})">Medical History</button>
-                <button class="btn" style="padding: 0.5rem 0.8rem; font-size: 0.9rem; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.25rem;" onclick="openEditModal(${user.user_id})">Edit</button>
-                <button class="btn" style="padding: 0.5rem 0.8rem; font-size: 0.9rem; background: var(--danger-color); color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="openDeleteModal(${user.user_id}, '${user.name}')">Delete</button>
+                <button class="btn btn-secondary" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;" onclick="viewMedicalHistory(${user.user_id})">Medical History</button>
+                <button class="btn" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.25rem;" onclick="openEditModal(${user.user_id})">Edit</button>
+                <button class="btn" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; background: var(--danger-color); color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="openDeleteModal(${user.user_id}, '${user.name}')">Delete</button>
             </td>
         </tr>
     `).join('');
