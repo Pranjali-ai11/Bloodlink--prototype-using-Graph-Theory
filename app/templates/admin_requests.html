@@ -9,28 +9,22 @@
 <body>
     {% include "_navbar.html" %}
 <div class="app-layout">
-    <aside class="app-sidebar">
-        <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div><p class="sidebar-label">ADMINISTRATION</p>
-        <a class="side-link" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
-        <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
-        <a class="side-link" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>
-        <a class="side-link active" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>
-        <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a></div>
-    </aside>
+    {% set active_admin = 'requests' %}{% include "_admin_sidebar.html" %}
     <main class="app-main dashboard-container admin-page">
         <div class="page-topline"><div><span class="section-kicker">COMMUNITY MANAGEMENT</span><h1>Blood requests</h1><p class="page-subtitle">Track incoming requests and their current status.</p></div></div>
         <section class="dashboard-card">
             <div class="card-heading admin-card-heading"><div><span class="section-kicker">REQUEST ACTIVITY</span><h2>All blood requests</h2></div><span class="admin-total"><i class="fas fa-heart-pulse"></i> {{ requests|length }} requests</span></div>
-            <div class="admin-table-wrap"><table>
-                <thead><tr><th>Request ID</th><th>Blood Group</th><th>Urgency</th><th>Location</th><th>Status</th></tr></thead>
+            <div id="request-message" class="message" role="status" aria-live="polite"></div><div class="admin-table-wrap"><table>
+                <thead><tr><th>Request ID</th><th>Blood Group</th><th>Urgency</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>{% for req in requests %}<tr>
                     <td><strong>#{{ req.request_id }}</strong></td><td><span class="donor-badge badge-blood">{{ req.blood_group }}</span></td>
                     <td><span class="status-pill {% if req.urgency_level == 'critical' %}status-critical{% elif req.urgency_level == 'urgent' %}status-pending{% else %}status-normal{% endif %}">{{ req.urgency_level|title }}</span></td>
-                    <td>{{ req.location }}</td><td><span class="status-pill {% if req.status == 'fulfilled' %}status-available{% else %}status-pending{% endif %}">{{ req.status|title }}</span></td>
-                </tr>{% else %}<tr><td colspan="5" class="table-empty">There are no blood requests to show yet.</td></tr>{% endfor %}</tbody>
+                    <td>{{ req.location }}</td><td><span class="status-pill {% if req.status == 'fulfilled' %}status-available{% else %}status-pending{% endif %}">{{ req.status|title }}</span></td><td><label class="request-edit-label">Urgency<select class="request-urgency" data-request-id="{{ req.request_id }}"><option value="normal" {% if req.urgency_level == 'normal' %}selected{% endif %}>Normal</option><option value="urgent" {% if req.urgency_level == 'urgent' %}selected{% endif %}>Urgent</option><option value="critical" {% if req.urgency_level == 'critical' %}selected{% endif %}>Critical</option></select></label><label class="request-edit-label">Status<select class="request-status" data-request-id="{{ req.request_id }}"><option value="active" {% if req.status == 'active' %}selected{% endif %}>Active</option><option value="fulfilled" {% if req.status == 'fulfilled' %}selected{% endif %}>Fulfilled</option><option value="cancelled" {% if req.status == 'cancelled' %}selected{% endif %}>Cancelled</option></select></label><button class="btn btn-primary request-save" data-request-id="{{ req.request_id }}">Save</button></td>
+                </tr>{% else %}<tr><td colspan="6" class="table-empty">There are no blood requests to show yet.</td></tr>{% endfor %}</tbody>
             </table></div>
         </section>
     </main>
 </div>
+<script src="{{ url_for('static', filename='js/admin_requests.js') }}"></script><script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

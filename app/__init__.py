@@ -25,6 +25,7 @@ from config import config
 from .models import User, db
 from .account_identity import (ensure_account_identity_constraints,
                                normalize_email, normalize_phone)
+from .database_info import database_location
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ def create_app(config_name='development'):
     )
     app.config.from_object(config[config_name]())
     db.init_app(app)
+    print(f"BloodLink database target: {database_location(app)}")
     from .routes import auth_bp, donor_bp, search_bp, admin_bp, main_bp
 
     app.register_blueprint(main_bp)
@@ -65,15 +67,22 @@ def create_app(config_name='development'):
         is_admin = bool(
             user_id and User.query.filter_by(user_id=user_id, role='admin').first()
         )
-        return {'is_admin': is_admin}
+
+        def static_version(filename):
+            try:
+                return str((Path(app.static_folder) / filename).stat().st_mtime_ns)
+            except OSError:
+                return '0'
+
+        return {'is_admin': is_admin, 'static_version': static_version}
 
     @app.after_request
     def prevent_private_response_caching(response):
         private_pages = {
             '/dashboard', '/network', '/medical-history', '/admin/hospitals',
-            '/admin/donors', '/admin/requests',
+            '/admin/users', '/admin/donors', '/admin/requests', '/admin/blood-banks', '/admin/inventory',
         }
-        if request.path.startswith('/api/') or request.path in private_pages:
+        if request.path.startswith('/api/') or request.path.startswith('/admin/') or request.path in private_pages:
             response.headers['Cache-Control'] = 'no-store'
         return response
 

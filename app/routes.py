@@ -110,7 +110,7 @@ def search_page():
 
 @main_bp.route('/admin/hospitals')
 def admin_hospitals():
-    """Admin hospital management page"""
+    """Admin hospital management page."""
     if 'user_id' not in session:
         return redirect(url_for('main.login_page'))
     
@@ -118,7 +118,35 @@ def admin_hospitals():
     if not user or user.role != 'admin':
         return redirect(url_for('main.dashboard'))
     
+    return render_template('admin_facilities.html', facility_type='hospitals')
+
+@main_bp.route('/admin/users')
+def admin_users():
+    if 'user_id' not in session:
+        return redirect(url_for('main.login_page'))
+    user = User.query.get(session['user_id'])
+    if not user or user.role != 'admin':
+        return redirect(url_for('main.dashboard'))
     return render_template('admin_hospitals.html')
+
+@main_bp.route('/admin/blood-banks')
+def admin_blood_banks():
+    if 'user_id' not in session:
+        return redirect(url_for('main.login_page'))
+    user = User.query.get(session['user_id'])
+    if not user or user.role != 'admin':
+        return redirect(url_for('main.dashboard'))
+    return render_template('admin_facilities.html', facility_type='blood-banks')
+
+@main_bp.route('/admin/inventory')
+def admin_inventory():
+    if 'user_id' not in session:
+        return redirect(url_for('main.login_page'))
+    user = User.query.get(session['user_id'])
+    if not user or user.role != 'admin':
+        return redirect(url_for('main.dashboard'))
+    banks = BloodBank.query.order_by(BloodBank.name).all()
+    return render_template('admin_inventory.html', blood_banks=banks)
 @main_bp.route('/admin/donors')
 def admin_donors():
     if 'user_id' not in session:
@@ -418,7 +446,13 @@ def get_donors():
         page_donors = donors[(page - 1) * 10:page * 10]
 
         return jsonify({
-            'donors': [d.to_dict() for d in page_donors],
+            'donors': [{
+                'donor_id': d.donor_id, 'name': d.user.name,
+                'blood_group': d.blood_group, 'city': d.city,
+                'latitude': d.latitude, 'longitude': d.longitude,
+                'is_available': bool(d.is_available), 'is_verified': bool(d.user.is_verified),
+                'is_eligible': True,
+            } for d in page_donors],
             'total': total,
             'pages': (total + 9) // 10
         }), 200
@@ -435,7 +469,16 @@ def get_donor(donor_id):
         if not donor:
             return jsonify({'error': 'Donor not found'}), 404
         
-        return jsonify(donor.to_dict()), 200
+        user = User.query.get(session.get('user_id')) if session.get('user_id') else None
+        if user and (user.role == 'admin' or user.user_id == donor.user_id):
+            return jsonify(donor.to_dict()), 200
+        return jsonify({
+            'donor_id': donor.donor_id, 'name': donor.user.name,
+            'blood_group': donor.blood_group, 'city': donor.city,
+            'is_available': bool(donor.is_available),
+            'is_verified': bool(donor.user.is_verified),
+            'is_eligible': is_donor_eligible(donor)['eligible'],
+        }), 200
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -608,10 +651,8 @@ def search():
             results.append({
                 'donor_id': donor.donor_id,
                 'name': donor.user.name,
-                'email': donor.user.email,
                 'age': donor.user.age,
                 'city': donor.city,
-                'address': donor.address,
                 'blood_group': donor.blood_group,
                 'latitude': donor.latitude,
                 'longitude': donor.longitude,
@@ -936,6 +977,176 @@ def update_request(request_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+FACILITY_FIELDS = {
+    'name': (120, True), 'address': (2000, False), 'city': (80, False), 'phone': (30, False)
+}
+BLOOD_GROUPS = {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}
+
+
+def _facility_payload(model, data, existing=None):
+    """Validate shared hospital/blood-bank fields and return update values."""
+    values = {}
+    for field, (limit, required) in FACILITY_FIELDS.items():
+        if field not in data and existing is not None:
+            continue
+        raw = data.get(field, '')
+        if not isinstance(raw, str) or len(raw.strip()) > limit or (required and not raw.strip()):
+            raise ValueError(f'{field.replace("_", " ").title()} is required and must be {limit} characters or fewer.' if required else f'{field.replace("_", " ").title()} must be {limit} characters or fewer.')
+        values[field] = raw.strip() or None
+    lat = data.get('latitude', existing.latitude if existing else None)
+    lon = data.get('longitude', existing.longitude if existing else None)
+    if (lat is None) != (lon is None):
+        raise ValueError('Latitude and longitude must be supplied together.')
+    if lat is not None:
+        try:
+            lat, lon = float(lat), float(lon)
+        except (TypeError, ValueError):
+            raise ValueError('Coordinates must be valid numbers.')
+        if not isfinite(lat) or not isfinite(lon) or not -90 <= lat <= 90 or not -180 <= lon <= 180:
+            raise ValueError('Coordinates are out of range.')
+    values.update(latitude=lat, longitude=lon)
+    if 'is_demo' in data:
+        if not isinstance(data['is_demo'], bool):
+            raise ValueError('Demo status must be true or false.')
+        values['is_demo'] = data['is_demo']
+    elif existing is None:
+        values['is_demo'] = False
+    return values
+
+
+def _facility_admin_collection(model, label):
+    if request.method == 'GET':
+        items = model.query.order_by(model.city, model.name).all()
+        return jsonify({label: [item.to_dict() for item in items], 'count': len(items)}), 200
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Please submit facility details as a JSON object.'}), 400
+    try:
+        item = model(**_facility_payload(model, data))
+        db.session.add(item)
+        db.session.commit()
+        return jsonify({'message': f'{label[:-1].replace("_", " ").title()} created.', label[:-1]: item.to_dict()}), 201
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'Could not save facility.'}), 500
+
+
+@admin_bp.route('/admin/hospitals', methods=['GET', 'POST'])
+@admin_required
+def admin_hospital_collection():
+    return _facility_admin_collection(Hospital, 'hospitals')
+
+
+@admin_bp.route('/admin/hospitals/<int:facility_id>', methods=['GET', 'PUT', 'PATCH', 'DELETE'])
+@admin_required
+def admin_hospital_item(facility_id):
+    return _facility_admin_item(Hospital, facility_id, 'hospital')
+
+
+@admin_bp.route('/admin/blood-banks', methods=['GET', 'POST'])
+@admin_required
+def admin_blood_bank_collection():
+    return _facility_admin_collection(BloodBank, 'blood_banks')
+
+
+@admin_bp.route('/admin/blood-banks/<int:facility_id>', methods=['GET', 'PUT', 'PATCH', 'DELETE'])
+@admin_required
+def admin_blood_bank_item(facility_id):
+    return _facility_admin_item(BloodBank, facility_id, 'blood_bank', include_inventory=True)
+
+
+def _facility_admin_item(model, facility_id, key, include_inventory=False):
+    item = db.session.get(model, facility_id)
+    if item is None:
+        return jsonify({'error': f'{key.replace("_", " ").title()} not found.'}), 404
+    if request.method == 'GET':
+        return jsonify({key: item.to_dict(include_inventory=include_inventory) if model is BloodBank else item.to_dict()}), 200
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'message': f'{key.replace("_", " ").title()} deleted.'}), 200
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Please submit facility changes as a JSON object.'}), 400
+    try:
+        for field, value in _facility_payload(model, data, item).items():
+            setattr(item, field, value)
+        db.session.commit()
+        return jsonify({'message': f'{key.replace("_", " ").title()} updated.', key: item.to_dict(include_inventory=include_inventory) if model is BloodBank else item.to_dict()}), 200
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'Could not update facility.'}), 500
+
+
+@admin_bp.route('/admin/blood-banks/<int:bank_id>/inventory', methods=['GET', 'POST'])
+@admin_required
+def admin_bank_inventory(bank_id):
+    bank = db.session.get(BloodBank, bank_id)
+    if not bank:
+        return jsonify({'error': 'Blood bank not found.'}), 404
+    if request.method == 'GET':
+        return jsonify({'blood_bank': bank.to_dict(), 'inventory': [item.to_dict() for item in bank.inventory]}), 200
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Please submit inventory details as a JSON object.'}), 400
+    group = data.get('blood_group')
+    units = data.get('units')
+    if not isinstance(group, str) or group not in BLOOD_GROUPS:
+        return jsonify({'error': 'Select a supported blood group.'}), 400
+    if isinstance(units, bool) or not isinstance(units, int) or units < 0:
+        return jsonify({'error': 'Units must be a whole number greater than or equal to zero.'}), 400
+    if BloodInventory.query.filter_by(blood_bank_id=bank.id, blood_group=group).first():
+        return jsonify({'error': 'An inventory record for this blood group already exists at this bank.'}), 409
+    item = BloodInventory(blood_bank_id=bank.id, blood_group=group, units=units,
+                          is_demo=data.get('is_demo', bank.is_demo))
+    if not isinstance(item.is_demo, bool):
+        return jsonify({'error': 'Demo status must be true or false.'}), 400
+    db.session.add(item)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'An inventory record for this blood group already exists at this bank.'}), 409
+    return jsonify({'message': 'Inventory record created.', 'inventory': item.to_dict()}), 201
+
+
+@admin_bp.route('/admin/inventory/<int:inventory_id>', methods=['GET', 'PUT', 'PATCH', 'DELETE'])
+@admin_required
+def admin_inventory_item(inventory_id):
+    item = db.session.get(BloodInventory, inventory_id)
+    if not item:
+        return jsonify({'error': 'Inventory record not found.'}), 404
+    if request.method == 'GET':
+        return jsonify({'inventory': item.to_dict()}), 200
+    if request.method == 'DELETE':
+        db.session.delete(item)
+        db.session.commit()
+        return jsonify({'message': 'Inventory record deleted.'}), 200
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Please submit inventory changes as a JSON object.'}), 400
+    group = data.get('blood_group', item.blood_group)
+    units = data.get('units', item.units)
+    demo = data.get('is_demo', item.is_demo)
+    if not isinstance(group, str) or group not in BLOOD_GROUPS:
+        return jsonify({'error': 'Select a supported blood group.'}), 400
+    if isinstance(units, bool) or not isinstance(units, int) or units < 0:
+        return jsonify({'error': 'Units must be a whole number greater than or equal to zero.'}), 400
+    if not isinstance(demo, bool):
+        return jsonify({'error': 'Demo status must be true or false.'}), 400
+    if BloodInventory.query.filter(BloodInventory.id != item.id,
+            BloodInventory.blood_bank_id == item.blood_bank_id,
+            BloodInventory.blood_group == group).first():
+        return jsonify({'error': 'An inventory record for this blood group already exists at this bank.'}), 409
+    item.blood_group, item.units, item.is_demo = group, units, demo
+    db.session.commit()
+    return jsonify({'message': 'Inventory record updated.', 'inventory': item.to_dict()}), 200
+
+
 @admin_bp.route('/admin/users', methods=['GET'])
 @admin_required
 def get_users():
@@ -946,6 +1157,8 @@ def get_users():
         role = request.args.get('role')
         page = max(page, 1)
         per_page = min(max(per_page, 1), 100)
+        search_term = (request.args.get('q') or '').strip()
+        status = request.args.get('status')
         
         from sqlalchemy import or_
 
@@ -954,15 +1167,24 @@ def get_users():
         )
         if role:
             query = query.filter_by(role=role)
+        if search_term:
+            term = f'%{search_term}%'
+            query = query.filter(or_(User.name.ilike(term), User.email.ilike(term), User.phone.ilike(term)))
+        if status == 'verified':
+            query = query.filter(User.is_verified.is_(True))
+        elif status == 'unverified':
+            query = query.filter(User.is_verified.is_(False))
         
         users = query.order_by(User.user_id.desc()).paginate(
-            page=page, per_page=per_page
+            page=page, per_page=per_page, error_out=False
         )
         
         return jsonify({
             'users': [u.to_dict() for u in users.items],
             'total': users.total,
-            'pages': users.pages
+            'pages': users.pages,
+            'page': users.page,
+            'per_page': users.per_page
         }), 200
     
     except Exception as e:

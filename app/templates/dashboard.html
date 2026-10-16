@@ -10,7 +10,7 @@
 <body>
     {% include "_navbar.html" %}
     <div class="app-layout">
-        <aside class="app-sidebar">
+        {% if is_admin %}{% set active_admin = 'dashboard' %}{% include "_admin_sidebar.html" %}{% else %}<aside class="app-sidebar">
             <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div>
             <p class="sidebar-label">YOUR SPACE</p>
             <a class="side-link active" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
@@ -19,7 +19,7 @@
             <a class="side-link" href="/medical-history"><i class="fas fa-notes-medical"></i> Medical History</a>
             <button id="create-request-btn" class="side-link side-action"><i class="fas fa-hand-holding-medical"></i> Request Blood</button>
             <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a><button id="logout-btn" class="side-link side-action"><i class="fas fa-right-from-bracket"></i> Log out</button></div>
-        </aside>
+        </aside>{% endif %}
         <main class="app-main dashboard-container">
         <div class="page-topline"><div><span class="section-kicker">YOUR BLOODLINK</span><h1>Welcome, <span id="user-name">there</span> <span class="wave">✋</span></h1><p class="page-subtitle">Your kindness makes a difference. Here’s your donor activity.</p></div><div class="topline-actions"><a href="/" class="quiet-link">bloodlink.org</a></div></div>
             <div class="dashboard-overview">

@@ -236,3 +236,11 @@ Facility APIs:
 - GET /api/hospitals — hospital directory
 - GET /api/blood-banks — blood banks and recorded inventory
 - GET /api/blood-banks/<id>/inventory — one bank's inventory
+
+Administrator facility management is available from the admin sidebar. The user page is `/admin/users`; `/admin/hospitals` now opens Hospital Management. `/admin/blood-banks` manages blood bank directory records and `/admin/inventory` manages each bank's stock by blood group. These pages use admin-only APIs:
+
+- GET/POST `/api/admin/hospitals`; GET/PUT/PATCH/DELETE `/api/admin/hospitals/<id>`
+- GET/POST `/api/admin/blood-banks`; GET/PUT/PATCH/DELETE `/api/admin/blood-banks/<id>`
+- GET/POST `/api/admin/blood-banks/<id>/inventory`; GET/PUT/PATCH/DELETE `/api/admin/inventory/<id>`
+
+Inventory units must be whole, nonnegative values. A bank can have one record per blood group. Hospital and blood-bank demo flags are retained on seeded records; rerunning `python tools/seed_facilities.py` updates the named demo entries and their sample inventory without deleting other facility rows. No schema migration is required for admin facility management.

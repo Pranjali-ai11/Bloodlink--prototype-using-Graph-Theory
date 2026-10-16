@@ -278,7 +278,22 @@ function displayFacilityResults(banks, hospitals, bloodGroup, userLat, userLng, 
     if (hospitals === null) {
         renderEmptyResult(hospitalsList, 'Hospital results could not be loaded.');
     } else {
-        renderEmptyResult(hospitalsList, 'No matching blood available at nearby hospitals.');
+        const nearby = hospitals.map(hospital => {
+            const coordinates = coordinatesFor(hospital);
+            const distance = coordinates ? distanceBetween(userLat, userLng, coordinates.latitude, coordinates.longitude) : null;
+            return { ...hospital, distance };
+        }).filter(hospital => hospital.distance === null || hospital.distance <= radius)
+          .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+        if (!nearby.length) renderEmptyResult(hospitalsList, 'No hospitals are listed in this search area.');
+        else nearby.forEach(hospital => {
+            const card = document.createElement('article'); card.className = 'facility-card';
+            const heading = document.createElement('h3'); heading.textContent = hospital.name || 'Hospital';
+            const address = document.createElement('p'); address.textContent = `Address: ${[hospital.address, hospital.city].filter(Boolean).join(', ') || 'Not provided'}`;
+            const phone = document.createElement('p'); phone.textContent = `Phone: ${hospital.phone || 'Not provided'}`;
+            const distance = document.createElement('p'); distance.textContent = `Distance: ${hospital.distance === null ? 'Unavailable' : `${hospital.distance.toFixed(2)} km`}`;
+            card.append(heading, address, phone, distance); hospitalsList.append(card);
+            if (coordinatesFor(hospital)) addSearchMarker(hospital, 'hospital', `<b>${escapeHtml(hospital.name || 'Hospital')}</b><br>${escapeHtml([hospital.address, hospital.city].filter(Boolean).join(', '))}<br>Distance: ${hospital.distance === null ? 'Unavailable' : `${hospital.distance.toFixed(2)} km`}`);
+        });
     }
 
     const locatedMarkers = markers.filter(marker => map?.hasLayer(marker));
@@ -386,15 +401,7 @@ function displayDonors(donors) {
         verified.textContent = donor.is_verified ? '✓ Verified Donor' : 'Not verified';
         info.appendChild(verified);
 
-        const buttons = document.createElement('div');
-        buttons.className = 'donor-buttons';
-        const email = document.createElement('a');
-        email.className = 'btn btn-secondary';
-        email.href = 'mailto:' + (donor.email || '');
-        email.textContent = 'Email';
-        buttons.appendChild(email);
-
-        card.append(ranking, heading, scoreGrid, info, buttons);
+        card.append(ranking, heading, scoreGrid, info);
         donorsList.appendChild(card);
 
         const latitude = Number(donor.latitude);
@@ -406,7 +413,7 @@ function displayDonors(donors) {
                 'Type: Donor<br>' +
                 'Rank: #' + rank + '<br>' +
                 'Blood group: ' + escapeHtml(donor.blood_group || 'N/A') + '<br>' +
-                'Address: ' + escapeHtml([donor.address, donor.city].filter(Boolean).join(', ') || 'Not provided') + '<br>' +
+                'City: ' + escapeHtml(donor.city || 'Not provided') + '<br>' +
                 'Distance: ' + (distance === 'N/A' ? 'N/A' : distance + ' km');
             addSearchMarker(donor, 'donor', popup);
         }

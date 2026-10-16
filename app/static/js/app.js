@@ -63,6 +63,9 @@ function showMessage(element, message, type = 'success') {
     }
 }
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-logout]').forEach(button => {
+        button.addEventListener('click', logout);
+    });
     checkLoginStatus();
     loadHomeDonorCount();
     const bloodBtns = document.querySelectorAll('.blood-btn');

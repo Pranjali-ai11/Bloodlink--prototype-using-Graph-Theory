@@ -9,14 +9,7 @@
 <body>
     {% include "_navbar.html" %}
 <div class="app-layout">
-    <aside class="app-sidebar">
-        <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div><p class="sidebar-label">ADMINISTRATION</p>
-        <a class="side-link" href="/admin/hospitals"><i class="fas fa-table-cells-large"></i> User Management</a>
-        <a class="side-link" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
-        <a class="side-link active" href="/admin/donors"><i class="fas fa-users"></i> Donors</a>
-        <a class="side-link" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>
-        <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a></div>
-    </aside>
+    {% set active_admin = 'donors' %}{% include "_admin_sidebar.html" %}
     <main class="app-main dashboard-container admin-page">
         <div class="page-topline"><div><span class="section-kicker">COMMUNITY MANAGEMENT</span><h1>Registered donors</h1><p class="page-subtitle">Review availability and donor contact details.</p></div></div>
         <section class="dashboard-card">
@@ -36,5 +29,6 @@
     </main>
 </div>
 <script src="{{ url_for('static', filename='js/admin_donors.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

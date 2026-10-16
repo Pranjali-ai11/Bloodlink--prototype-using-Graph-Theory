@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></head>
 <body>
     {% include "_navbar.html" %}
-<div class="app-layout"><aside class="app-sidebar">
+<div class="app-layout">{% if is_admin %}{% set active_admin = 'network' %}{% include "_admin_sidebar.html" %}{% else %}<aside class="app-sidebar">
 <div class="nav-brand"><i class="fas fa-droplet"></i> BloodLink</div>
 <p class="sidebar-label">{{ 'ADMINISTRATION' if is_admin else 'YOUR SPACE' }}</p>
 <a class="side-link" href="/dashboard"><i class="fas fa-house"></i> Dashboard</a>
@@ -14,7 +14,7 @@
 <a class="side-link active" href="/network"><i class="fas fa-diagram-project"></i> BloodLink Network</a>
 {% if is_admin %}<a class="side-link" href="/admin/donors"><i class="fas fa-users"></i> Donors</a><a class="side-link" href="/admin/requests"><i class="fas fa-heart-pulse"></i> Blood Requests</a>{% endif %}
 <div class="sidebar-bottom"><a class="side-link" href="/"><i class="fas fa-arrow-left"></i> Back to Home</a><button id="logout-btn" class="side-link side-action"><i class="fas fa-right-from-bracket"></i> Log out</button></div>
-</aside><main class="app-main dashboard-container network-page">
+</aside>{% endif %}<main class="app-main dashboard-container network-page">
 <div class="page-topline"><div><span class="section-kicker">GRAPH-BASED MATCHING</span><h1>BloodLink Network</h1><p class="page-subtitle">Explore compatible groups, donor matches, hospitals and blood banks in one network view.</p></div></div>
 <section class="dashboard-card network-controls"><div class="network-request-control"><label for="network-request">Blood request</label><select id="network-request">{% for item in blood_requests %}<option value="{{ item.request_id }}" {% if loop.first %}selected{% endif %}>#{{ item.request_id }} · {{ item.blood_group }} · {{ item.urgency_level|title }} · {{ item.location or 'Location not provided' }}</option>{% else %}<option value="">No active requests available</option>{% endfor %}</select></div>
 <p class="network-note">{% if is_admin %}Administrators can review every active request.{% else %}Only active requests you own are shown here.{% endif %}</p></section>

@@ -1,7 +1,8 @@
 import unittest
 
 from app import create_app, db
-from app.models import BloodRequest, Report, User
+from app.models import (BloodRequest, Report, User, Hospital, BloodBank,
+                        BloodInventory)
 
 
 class SecurityAndApiAuditTests(unittest.TestCase):
@@ -154,6 +155,7 @@ class SecurityAndApiAuditTests(unittest.TestCase):
         self.assertEqual(self.login_as(admin).status_code, 200)
         for path in (
                 "/dashboard", "/medical-history", "/network", "/admin/hospitals",
+                "/admin/users", "/admin/blood-banks", "/admin/inventory",
                 "/admin/donors", "/admin/requests"):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 200)
@@ -218,6 +220,71 @@ class SecurityAndApiAuditTests(unittest.TestCase):
         response = self.client.delete(f"/api/admin/users/{admin.user_id}")
         self.assertEqual(response.status_code, 403)
         self.assertIsNotNone(db.session.get(User, admin.user_id))
+
+    def test_admin_hospital_crud_and_non_admin_protection(self):
+        hospital_data = {"name": "Test Hospital", "city": "Pune", "address": "Main Road",
+                         "phone": "5550100", "latitude": 18.5, "longitude": 73.8,
+                         "is_demo": True}
+        self.assertEqual(self.client.post("/api/admin/hospitals", json=hospital_data).status_code, 401)
+        member = self.make_user("member@example.test", "1111111111")
+        self.assertEqual(self.login_as(member).status_code, 200)
+        self.assertEqual(self.client.post("/api/admin/hospitals", json=hospital_data).status_code, 403)
+        self.client.post("/api/logout")
+        admin = self.make_user("admin@example.test", "2222222222", "admin")
+        self.assertEqual(self.login_as(admin).status_code, 200)
+        created = self.client.post("/api/admin/hospitals", json=hospital_data)
+        self.assertEqual(created.status_code, 201)
+        hospital_id = created.get_json()["hospital"]["id"]
+        self.assertEqual(self.client.get("/api/admin/hospitals").get_json()["count"], 1)
+        self.assertEqual(self.client.get(f"/api/admin/hospitals/{hospital_id}").status_code, 200)
+        self.assertEqual(self.client.put(f"/api/admin/hospitals/{hospital_id}", json={"city": "Nashik"}).status_code, 200)
+        self.assertEqual(db.session.get(Hospital, hospital_id).city, "Nashik")
+        self.assertEqual(self.client.delete(f"/api/admin/hospitals/{hospital_id}").status_code, 200)
+        self.assertIsNone(db.session.get(Hospital, hospital_id))
+
+    def test_admin_blood_bank_crud_and_inventory_validation(self):
+        payload = {"name": "Central Blood Bank", "city": "Pune", "is_demo": False}
+        self.assertEqual(self.client.post("/api/admin/blood-banks", json=payload).status_code, 401)
+        member = self.make_user("member@example.test", "1111111111")
+        self.assertEqual(self.login_as(member).status_code, 200)
+        self.assertEqual(self.client.post("/api/admin/blood-banks", json=payload).status_code, 403)
+        self.client.post("/api/logout")
+        admin = self.make_user("admin@example.test", "2222222222", "admin")
+        self.assertEqual(self.login_as(admin).status_code, 200)
+        created = self.client.post("/api/admin/blood-banks", json=payload)
+        self.assertEqual(created.status_code, 201)
+        bank_id = created.get_json()["blood_bank"]["id"]
+        self.assertEqual(self.client.get("/api/admin/blood-banks").get_json()["count"], 1)
+        self.assertEqual(self.client.get(f"/api/admin/blood-banks/{bank_id}").status_code, 200)
+        self.assertEqual(self.client.patch(f"/api/admin/blood-banks/{bank_id}", json={"city": "Mumbai"}).status_code, 200)
+        self.assertEqual(db.session.get(BloodBank, bank_id).city, "Mumbai")
+        stock_url = f"/api/admin/blood-banks/{bank_id}/inventory"
+        self.assertEqual(self.client.post(stock_url, json={"blood_group": "O+", "units": -1}).status_code, 400)
+        stock = self.client.post(stock_url, json={"blood_group": "O+", "units": 4})
+        self.assertEqual(stock.status_code, 201)
+        inventory_id = stock.get_json()["inventory"]["id"]
+        self.assertEqual(self.client.post(stock_url, json={"blood_group": "O+", "units": 9}).status_code, 409)
+        self.assertEqual(self.client.put(f"/api/admin/inventory/{inventory_id}", json={"units": 8}).status_code, 200)
+        self.assertEqual(db.session.get(BloodInventory, inventory_id).units, 8)
+        self.assertEqual(self.client.delete(f"/api/admin/inventory/{inventory_id}").status_code, 200)
+        self.assertIsNone(db.session.get(BloodInventory, inventory_id))
+        self.assertEqual(self.client.delete(f"/api/admin/blood-banks/{bank_id}").status_code, 200)
+        self.assertIsNone(db.session.get(BloodBank, bank_id))
+
+    def test_public_donor_payload_omits_contact_and_full_address(self):
+        response = self.client.post("/api/register", json={
+            "name": "Private Donor", "email": "private-donor@example.test",
+            "password": "StrongPass!", "phone": "1234567890", "age": 30,
+            "role": "donor", "blood_group": "O+", "city": "Pune",
+            "address": "Private home address", "latitude": 18.52, "longitude": 73.86,
+        })
+        self.assertEqual(response.status_code, 201)
+        donor_id = self.client.get("/api/current-user").get_json()["donor"]["donor_id"]
+        self.client.post("/api/logout")
+        public = self.client.get(f"/api/donors/{donor_id}").get_json()
+        self.assertNotIn("email", public)
+        self.assertNotIn("phone", public)
+        self.assertNotIn("address", public)
 
     def test_blood_request_details_are_private_to_owner_and_admin(self):
         owner = self.make_user("owner@example.test", "1111111111")

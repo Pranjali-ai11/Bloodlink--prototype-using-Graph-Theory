@@ -1,5 +1,5 @@
 """
-Seed 6 Pune hospitals and 6 Pune blood banks.
+Seed 6 Pune hospitals and 6 clearly fictional Pune blood banks.
 
 Blood inventory values are DEMO values for the college project.
 They are NOT live blood availability.
@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app import create_app, db
+from app.database_info import database_location
 from app.models import Hospital, BloodBank, BloodInventory
 
 
@@ -26,6 +27,17 @@ BLOOD_GROUPS = (
     "AB-",
     "O+",
     "O-",
+)
+
+# Names used by earlier demo seed revisions. They may be renamed only when
+# the matched row is explicitly marked as demo data.
+LEGACY_DEMO_BLOOD_BANK_NAMES = (
+    "Jankalyan Blood Centre",
+    "Akshay Blood Centre",
+    "Om Blood Bank",
+    "Sanjeevan Blood Storage Centre",
+    "Deenanath Mangeshkar Hospital Blood Bank",
+    "Poona Serological Institute Blood Bank",
 )
 
 
@@ -91,105 +103,25 @@ HOSPITALS = [
 
 
 # ---------------------------------------------------------
-# 6 BLOOD BANKS
+# 6 FICTIONAL BLOOD BANKS
 # ---------------------------------------------------------
 
 BLOOD_BANKS = [
     {
-        "name": "Jankalyan Blood Centre",
-        "address": "1003, Saras Baug Road, Shukrawar Peth, Pune, Maharashtra 411002",
+        "name": "BloodLink Demo Blood Centre - Pune Central",
+        "address": "Demo Facility 1, Shivajinagar, Pune, Maharashtra",
         "city": "Pune",
-        "latitude": 18.5055,
-        "longitude": 73.8550,
-        "phone": "+91 20 2444 9527",
+        "latitude": 18.5204,
+        "longitude": 73.8567,
+        "phone": "+91 20 0000 0101",
 
         # DEMO inventory
         "inventory": {
-            "A+": 12,
-            "A-": 4,
-            "B+": 15,
-            "B-": 3,
-            "AB+": 8,
-            "AB-": 2,
-            "O+": 20,
-            "O-": 5,
-        },
-    },
-
-    {
-        "name": "Akshay Blood Centre",
-        "address": "Survey No. 10, Utkarsh Nagar, Hadapsar, Pune, Maharashtra 411028",
-        "city": "Pune",
-        "latitude": 18.4980,
-        "longitude": 73.9260,
-        "phone": "+91 96979 34444",
-
-        "inventory": {
-            "A+": 10,
-            "A-": 3,
+            "A+": 18,
+            "A-": 5,
             "B+": 14,
             "B-": 4,
             "AB+": 7,
-            "AB-": 2,
-            "O+": 18,
-            "O-": 4,
-        },
-    },
-
-    {
-        "name": "Om Blood Bank",
-        "address": "Baburaoji Sonawane Path, Mangalwar Peth, Pune, Maharashtra 411011",
-        "city": "Pune",
-        "latitude": 18.5235,
-        "longitude": 73.8620,
-        "phone": "+91 81495 08080",
-
-        "inventory": {
-            "A+": 8,
-            "A-": 2,
-            "B+": 11,
-            "B-": 3,
-            "AB+": 6,
-            "AB-": 1,
-            "O+": 16,
-            "O-": 3,
-        },
-    },
-
-    {
-        "name": "Sanjeevan Blood Storage Centre",
-        "address": "Medipoint Hospital, Shivraj Chowk, Chandan Nagar, Pune, Maharashtra 411014",
-        "city": "Pune",
-        "latitude": 18.5530,
-        "longitude": 73.9250,
-        "phone": "+91 77739 66539",
-
-        "inventory": {
-            "A+": 9,
-            "A-": 3,
-            "B+": 12,
-            "B-": 2,
-            "AB+": 5,
-            "AB-": 1,
-            "O+": 17,
-            "O-": 4,
-        },
-    },
-
-    {
-        "name": "Deenanath Mangeshkar Hospital Blood Bank",
-        "address": "Erandwane, Pune, Maharashtra 411004",
-        "city": "Pune",
-        "latitude": 18.5035,
-        "longitude": 73.8265,
-        "phone": "+91 20 4015 1000",
-
-        "inventory": {
-            "A+": 14,
-            "A-": 4,
-            "B+": 16,
-            "B-": 4,
-            "AB+": 9,
             "AB-": 2,
             "O+": 22,
             "O-": 6,
@@ -197,12 +129,92 @@ BLOOD_BANKS = [
     },
 
     {
-        "name": "Poona Serological Institute Blood Bank",
-        "address": "Dhanwantri Complex, Rasta Peth, Pune, Maharashtra 411002",
+        "name": "BloodLink Demo Blood Centre - Pune East",
+        "address": "Demo Facility 2, Kharadi, Pune, Maharashtra",
         "city": "Pune",
-        "latitude": 18.5210,
-        "longitude": 73.8645,
-        "phone": "+91 20 2613 3387",
+        "latitude": 18.5510,
+        "longitude": 73.9390,
+        "phone": "+91 20 0000 0102",
+
+        "inventory": {
+            "A+": 12,
+            "A-": 3,
+            "B+": 16,
+            "B-": 4,
+            "AB+": 8,
+            "AB-": 2,
+            "O+": 19,
+            "O-": 5,
+        },
+    },
+
+    {
+        "name": "BloodLink Demo Blood Centre - Pune West",
+        "address": "Demo Facility 3, Baner, Pune, Maharashtra",
+        "city": "Pune",
+        "latitude": 18.5590,
+        "longitude": 73.7868,
+        "phone": "+91 20 0000 0103",
+
+        "inventory": {
+            "A+": 10,
+            "A-": 2,
+            "B+": 12,
+            "B-": 3,
+            "AB+": 6,
+            "AB-": 1,
+            "O+": 17,
+            "O-": 4,
+        },
+    },
+
+    {
+        "name": "BloodLink Demo Blood Centre - Pune South",
+        "address": "Demo Facility 4, Hadapsar, Pune, Maharashtra",
+        "city": "Pune",
+        "latitude": 18.5089,
+        "longitude": 73.9270,
+        "phone": "+91 20 0000 0104",
+
+        "inventory": {
+            "A+": 13,
+            "A-": 4,
+            "B+": 11,
+            "B-": 2,
+            "AB+": 5,
+            "AB-": 1,
+            "O+": 16,
+            "O-": 4,
+        },
+    },
+
+    {
+        "name": "BloodLink Demo Blood Centre - Pune North",
+        "address": "Demo Facility 5, Aundh, Pune, Maharashtra",
+        "city": "Pune",
+        "latitude": 18.5600,
+        "longitude": 73.8070,
+        "phone": "+91 20 0000 0105",
+
+        "inventory": {
+            "A+": 15,
+            "A-": 4,
+            "B+": 17,
+            "B-": 5,
+            "AB+": 9,
+            "AB-": 3,
+            "O+": 21,
+            "O-": 6,
+        },
+    },
+
+    {
+        "name": "BloodLink Demo Blood Centre - Pune Central East",
+        "address": "Demo Facility 6, Mundhwa, Pune, Maharashtra",
+        "city": "Pune",
+        "latitude": 18.5300,
+        "longitude": 73.9100,
+        "phone": "+91 20 0000 0106",
 
         "inventory": {
             "A+": 11,
@@ -211,7 +223,7 @@ BLOOD_BANKS = [
             "B-": 3,
             "AB+": 7,
             "AB-": 2,
-            "O+": 19,
+            "O+": 18,
             "O-": 5,
         },
     },
@@ -222,25 +234,12 @@ BLOOD_BANKS = [
 # SEED DATABASE
 # ---------------------------------------------------------
 
-def seed_facilities():
-
-    app = create_app("development")
+def seed_facilities(app=None):
+    """Upsert demo facilities into the configured application database."""
+    app = app or create_app("development")
 
     with app.app_context():
-
-        # ---------------------------------------------
-        # Remove the old DEMO facilities only
-        # ---------------------------------------------
-
-        old_demo_banks = BloodBank.query.filter_by(is_demo=True).all()
-
-        for bank in old_demo_banks:
-            db.session.delete(bank)
-
-        old_demo_hospitals = Hospital.query.filter_by(is_demo=True).all()
-
-        for hospital in old_demo_hospitals:
-            db.session.delete(hospital)
+        print(f"Seed target database: {database_location(app)}")
 
         # ---------------------------------------------
         # Add hospitals
@@ -249,11 +248,19 @@ def seed_facilities():
         for data in HOSPITALS:
 
             existing = Hospital.query.filter_by(
-                name=data["name"],
-                city=data["city"]
+                name=data["name"], city=data["city"], is_demo=True
             ).first()
 
             if existing:
+                existing.address = data["address"]
+                existing.latitude = data["latitude"]
+                existing.longitude = data["longitude"]
+                existing.phone = data["phone"]
+                existing.is_demo = True
+                continue
+
+            if Hospital.query.filter_by(name=data["name"], city=data["city"]).first():
+                # Never convert or duplicate a real facility that shares a seed key.
                 continue
 
             hospital = Hospital(
@@ -263,7 +270,7 @@ def seed_facilities():
                 latitude=data["latitude"],
                 longitude=data["longitude"],
                 phone=data["phone"],
-                is_demo=False,
+                is_demo=True,
             )
 
             db.session.add(hospital)
@@ -272,15 +279,30 @@ def seed_facilities():
         # Add blood banks
         # ---------------------------------------------
 
-        for data in BLOOD_BANKS:
+        for index, data in enumerate(BLOOD_BANKS):
 
             existing = BloodBank.query.filter_by(
-                name=data["name"],
-                city=data["city"]
+                name=data["name"], city=data["city"], is_demo=True
             ).first()
+            if existing is None:
+                existing = BloodBank.query.filter_by(
+                    name=LEGACY_DEMO_BLOOD_BANK_NAMES[index],
+                    city=data["city"], is_demo=True
+                ).first()
+
+            if existing is None and BloodBank.query.filter_by(
+                    name=data["name"], city=data["city"]).first():
+                # Never convert or duplicate a real facility that shares a seed key.
+                continue
 
             if existing:
                 bank = existing
+                bank.name = data["name"]
+                bank.address = data["address"]
+                bank.latitude = data["latitude"]
+                bank.longitude = data["longitude"]
+                bank.phone = data["phone"]
+                bank.is_demo = True
 
             else:
                 bank = BloodBank(
@@ -305,13 +327,15 @@ def seed_facilities():
                 units = data["inventory"][blood_group]
 
                 existing_inventory = BloodInventory.query.filter_by(
-                    blood_bank_id=bank.id,
-                    blood_group=blood_group
+                    blood_bank_id=bank.id, blood_group=blood_group
                 ).first()
 
                 if existing_inventory:
+                    if not existing_inventory.is_demo:
+                        # Preserve real stock, which is protected by the same
+                        # bank/group unique constraint.
+                        continue
                     existing_inventory.units = units
-                    existing_inventory.is_demo = True
 
                 else:
                     inventory = BloodInventory(
@@ -329,9 +353,14 @@ def seed_facilities():
         print("=" * 60)
         print("BloodLink facility database updated successfully!")
         print("=" * 60)
-        print("Hospitals added : 6")
-        print("Blood banks added : 6")
-        print("Blood groups per bank : 8")
+        print("Hospital seed entries : 6")
+        print(f"Demo blood banks in seed set : {len(BLOOD_BANKS)}")
+        print(f"Inventory records per seeded bank : {len(BLOOD_GROUPS)}")
+        print(f"Demo inventory records in seed set : {len(BLOOD_BANKS) * len(BLOOD_GROUPS)}")
+        print(f"Blood bank rows in database : {BloodBank.query.count()}")
+        print(f"Demo blood bank rows in database : {BloodBank.query.filter_by(is_demo=True).count()}")
+        print(f"Inventory rows in database : {BloodInventory.query.count()}")
+        print(f"Demo inventory rows in database : {BloodInventory.query.filter_by(is_demo=True).count()}")
         print()
         print("IMPORTANT:")
         print("Blood inventory values are DEMO values.")

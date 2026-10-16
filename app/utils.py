@@ -40,7 +40,6 @@ def find_nearby_donors(blood_groups, lat, lon, radius_km):
             nearby.append({
                 "donor_id": donor.donor_id,
                 "name": donor.user.name,
-                "email": donor.user.email,
                 "age": donor.user.age,
                 "city": donor.city,
                 "blood_group": donor.blood_group,

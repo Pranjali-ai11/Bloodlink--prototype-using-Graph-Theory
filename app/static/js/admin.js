@@ -3,6 +3,9 @@ const API_BASE = '';
 let allUsers = [];
 let userToDelete = null;
 let userToEdit = null;
+let userPage = 1;
+let userPages = 1;
+let userSearchTimer = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
@@ -11,20 +14,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function attachEventListeners() {
     document.getElementById('refresh-btn').addEventListener('click', loadUsers);
-    document.getElementById('search-box').addEventListener('input', filterTable);
-    document.getElementById('status-filter').addEventListener('change', filterTable);
+    document.getElementById('search-box').addEventListener('input', () => { clearTimeout(userSearchTimer); userSearchTimer = setTimeout(() => { userPage = 1; loadUsers(); }, 250); });
+    document.getElementById('status-filter').addEventListener('change', () => { userPage = 1; loadUsers(); });
+    document.getElementById('users-prev').addEventListener('click', () => { if (userPage > 1) { userPage--; loadUsers(); } });
+    document.getElementById('users-next').addEventListener('click', () => { if (userPage < userPages) { userPage++; loadUsers(); } });
     document.getElementById('confirm-delete-btn').addEventListener('click', deleteUser);
     document.getElementById('edit-form').addEventListener('submit', saveUserChanges);
     
-    document.getElementById('logout-btn').addEventListener('click', async function() {
-        await fetch(`${API_BASE}/api/logout`, { method: 'POST' });
-        window.location.href = '/';
-    });
 }
 
 async function loadUsers() {
     try {
-        const response = await fetch(`${API_BASE}/api/admin/users?page=1&per_page=100`);
+        const params = new URLSearchParams({page: userPage, per_page: 20, q: document.getElementById('search-box').value.trim(), status: document.getElementById('status-filter').value});
+        const response = await fetch(`${API_BASE}/api/admin/users?${params}`);
         
         if (!response.ok) {
             if (response.status === 401 || response.status === 403) {
@@ -35,9 +37,13 @@ async function loadUsers() {
         
         const data = await response.json();
         allUsers = data.users || [];
+        userPages = Math.max(data.pages || 1, 1);
         
         renderTable(allUsers);
-        document.getElementById('total-count').textContent = allUsers.length;
+        document.getElementById('total-count').textContent = data.total || 0;
+        document.getElementById('users-page').textContent = `Page ${data.page || userPage} of ${userPages}`;
+        document.getElementById('users-prev').disabled = userPage <= 1;
+        document.getElementById('users-next').disabled = userPage >= userPages;
     } catch (error) {
         console.error('Error loading users:', error);
         const row = document.createElement('tr');
@@ -169,25 +175,6 @@ async function viewMedicalHistory(userId) {
 
 function closeMedicalHistoryModal() {
     document.getElementById('medical-history-modal').style.display = 'none';
-}
-
-function filterTable() {
-    const searchTerm = document.getElementById('search-box').value.toLowerCase();
-    const statusFilter = document.getElementById('status-filter').value;
-    
-    let filtered = allUsers.filter(user => {
-        const matchesSearch = user.name.toLowerCase().includes(searchTerm) || 
-                            user.email.toLowerCase().includes(searchTerm) ||
-                            user.phone.includes(searchTerm);
-        
-        const matchesStatus = !statusFilter || 
-                            (statusFilter === 'verified' && user.is_verified) ||
-                            (statusFilter === 'unverified' && !user.is_verified);
-        
-        return matchesSearch && matchesStatus;
-    });
-    
-    renderTable(filtered);
 }
 
 function openDeleteModal(userId, userName) {
