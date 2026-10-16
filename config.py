@@ -1,4 +1,5 @@
 import os
+import secrets
 
 
 class Config:
@@ -8,11 +9,15 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = False
     TESTING = False
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
 
 
 class DevelopmentConfig(Config):
     """Development-only settings."""
-    SECRET_KEY = os.environ.get("SECRET_KEY") or "bloodlink-development-only-secret"
+    SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+    DEBUG = os.environ.get("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes"}
 
 
 class TestingConfig(Config):
@@ -26,6 +31,7 @@ class ProductionConfig(Config):
     """Production settings fail closed without a configured session secret."""
     SECRET_KEY = os.environ.get("SECRET_KEY")
     DEBUG = False
+    SESSION_COOKIE_SECURE = True
 
     def __init__(self):
         secret_key = os.environ.get("SECRET_KEY")

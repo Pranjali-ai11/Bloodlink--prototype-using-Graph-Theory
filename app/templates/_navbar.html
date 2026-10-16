@@ -6,6 +6,7 @@
             <li><a href="/search" class="btn">Find Donor</a></li>
             {% if session.get('user_id') %}
                 <li><a href="/dashboard" class="btn">Dashboard</a></li>
+                {% if is_admin %}<li><a href="/admin/hospitals" class="btn">Administration</a></li>{% endif %}
                 <li><button type="button" class="btn" data-logout>Logout</button></li>
             {% else %}
                 <li><a href="/register" class="btn">Register</a></li>

@@ -242,8 +242,6 @@ def seed_facilities():
         for hospital in old_demo_hospitals:
             db.session.delete(hospital)
 
-        db.session.commit()
-
         # ---------------------------------------------
         # Add hospitals
         # ---------------------------------------------

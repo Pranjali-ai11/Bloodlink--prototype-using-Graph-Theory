@@ -40,56 +40,82 @@ async function loadUsers() {
         document.getElementById('total-count').textContent = allUsers.length;
     } catch (error) {
         console.error('Error loading users:', error);
-        document.getElementById('table-body').innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem; color: red;">
-                    Error loading users: ${error.message}
-                </td>
-            </tr>
-        `;
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.style.cssText = 'text-align: center; padding: 2rem; color: red;';
+        cell.textContent = `Error loading users: ${error.message}`;
+        row.appendChild(cell);
+        document.getElementById('table-body').replaceChildren(row);
     }
 }
 
 function renderTable(users) {
     const tableBody = document.getElementById('table-body');
-    
+
+    const makeCell = (value, { center = false } = {}) => {
+        const cell = document.createElement('td');
+        cell.style.cssText = `padding: 1rem; border-right: 1px solid var(--border-color);${center ? ' text-align: center;' : ''}`;
+        cell.textContent = value == null ? '' : String(value);
+        return cell;
+    };
+
     if (users.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-color);">
-                    No users found
-                </td>
-            </tr>
-        `;
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.style.cssText = 'text-align: center; padding: 2rem; color: var(--text-color);';
+        cell.textContent = 'No users found';
+        row.appendChild(cell);
+        tableBody.replaceChildren(row);
         return;
     }
-    
-    tableBody.innerHTML = users.map((user, index) => `
-        <tr style="border-bottom: 1px solid var(--border-color); ${index % 2 === 0 ? 'background: #f9f9f9;' : ''}">
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">${user.user_id}</td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">${user.name}</td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">${user.email}</td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">${user.phone}</td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">
-                <span style="background: ${user.role === 'admin' ? 'var(--primary-color)' : 'var(--secondary-color)'}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;">
-                    ${user.role}
-                </span>
-            </td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">
-                <span style="background: ${user.is_verified ? '#e6f7f0' : '#ffe6f0'}; color: ${user.is_verified ? '#2d7a63' : '#d63384'}; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.85rem;">
-                    ${user.is_verified ? 'Verified' : 'Unverified'}
-                </span>
-            </td>
-            <td style="padding: 1rem; border-right: 1px solid var(--border-color);">
-                ${new Date(user.created_at).toLocaleDateString()}
-            </td>
-            <td style="padding: 1rem; text-align: center;">
-                <button class="btn btn-secondary" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;" onclick="viewMedicalHistory(${user.user_id})">Medical History</button>
-                <button class="btn" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.25rem;" onclick="openEditModal(${user.user_id})">Edit</button>
-                <button class="btn" style="padding: 0.1rem 0.5rem; font-size: 0.8rem; background: var(--danger-color); color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="openDeleteModal(${user.user_id}, '${user.name}')">Delete</button>
-            </td>
-        </tr>
-    `).join('');
+
+    const rows = users.map((user, index) => {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-color)';
+        if (index % 2 === 0) row.style.background = '#f9f9f9';
+        row.append(
+            makeCell(user.user_id), makeCell(user.name),
+            makeCell(user.email), makeCell(user.phone)
+        );
+
+        const roleCell = makeCell('');
+        const roleBadge = document.createElement('span');
+        roleBadge.style.cssText = `background: ${user.role === 'admin' ? 'var(--primary-color)' : 'var(--secondary-color)'}; color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.85rem;`;
+        roleBadge.textContent = user.role || '';
+        roleCell.appendChild(roleBadge);
+        row.appendChild(roleCell);
+
+        const statusCell = makeCell('');
+        const statusBadge = document.createElement('span');
+        statusBadge.style.cssText = `background: ${user.is_verified ? '#e6f7f0' : '#ffe6f0'}; color: ${user.is_verified ? '#2d7a63' : '#d63384'}; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.85rem;`;
+        statusBadge.textContent = user.is_verified ? 'Verified' : 'Unverified';
+        statusCell.appendChild(statusBadge);
+        row.appendChild(statusCell);
+        row.appendChild(makeCell(new Date(user.created_at).toLocaleDateString()));
+
+        const actions = makeCell('', { center: true });
+        const buttons = [
+            ['Medical History', 'btn btn-secondary', () => viewMedicalHistory(user.user_id)],
+            ['Edit', 'btn admin-user-edit', () => openEditModal(user.user_id)],
+            ['Delete', 'btn admin-user-delete', () => openDeleteModal(user.user_id, user.name)],
+        ];
+        buttons.forEach(([label, className, action]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = className;
+            button.style.cssText = 'padding: 0.1rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;';
+            if (label === 'Edit') button.style.cssText += ' background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer;';
+            if (label === 'Delete') button.style.cssText += ' background: var(--danger-color); color: white; border: none; border-radius: 4px; cursor: pointer;';
+            button.textContent = label;
+            button.addEventListener('click', action);
+            actions.appendChild(button);
+        });
+        row.appendChild(actions);
+        return row;
+    });
+    tableBody.replaceChildren(...rows);
 }
 
 async function viewMedicalHistory(userId) {

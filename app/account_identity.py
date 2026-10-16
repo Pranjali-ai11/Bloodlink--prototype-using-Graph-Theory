@@ -78,6 +78,8 @@ def ensure_account_identity_constraints():
     for identifier, values in duplicates.items():
         if values:
             logger.warning(
-                "Existing duplicate normalized %s values found; accounts were "
-                "preserved. Resolve these manually: %s", identifier, values
+                "Existing duplicate normalized %s identifiers found across %d "
+                "value(s); accounts were preserved. Resolve them manually. "
+                "Identifier values are omitted from logs.",
+                identifier, len(values)
             )

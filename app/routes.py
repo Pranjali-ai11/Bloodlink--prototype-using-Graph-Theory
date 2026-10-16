@@ -20,6 +20,8 @@ from .matching_service import assign_donors
 from sqlalchemy.orm import joinedload, selectinload
 from functools import wraps
 from datetime import datetime, date
+from math import isfinite
+import re
 from types import SimpleNamespace
 
 
@@ -34,6 +36,10 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+        user = User.query.get(session['user_id'])
+        if not user:
+            session.clear()
             return jsonify({'error': 'Unauthorized'}), 401
         return f(*args, **kwargs)
     return decorated_function
@@ -145,15 +151,25 @@ def admin_requests():
 def register():
     """Register new user"""
     try:
-        data = request.get_json()
-        
-        if not all([data.get('name'), data.get('email'), data.get('password'), data.get('phone')]):
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit registration as a JSON object.'}), 400
+
+        name = data.get('name')
+        email_value = data.get('email')
+        password = data.get('password')
+        phone_value = data.get('phone')
+        if not all(isinstance(value, str) and value.strip()
+                   for value in (name, email_value, password, phone_value)):
             return jsonify({'error': 'Missing required fields'}), 400
-        
-        email = normalize_email(data.get('email'))
-        phone = normalize_phone(data.get('phone'))
-        if not email:
-            return jsonify({'error': 'Missing required fields'}), 400
+
+        name = name.strip()
+        email = normalize_email(email_value)
+        phone = normalize_phone(phone_value)
+        if len(name) > 100:
+            return jsonify({'error': 'Name must be 100 characters or fewer.'}), 400
+        if len(email) > 100 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+            return jsonify({'error': 'Please provide a valid email address.'}), 400
         if not phone.isdigit() or len(phone) != 10:
             return jsonify({'error': 'Phone must be exactly 10 digits'}), 400
         raw_age = data.get('age')
@@ -167,17 +183,43 @@ def register():
         except (TypeError, ValueError):
             return jsonify({'error': 'Please enter your age as a whole number.'}), 400
         role = data.get('role', 'donor')
+        if not isinstance(role, str) or role not in {'donor', 'seeker'}:
+            return jsonify({'error': 'Role must be donor or seeker.'}), 400
         if role == 'donor' and age < 18:
             return jsonify({'error': 'Donors must be 18 or older to register.'}), 400
-        if age < 0:
+        if age < 0 or age > 120:
             return jsonify({'error': 'Please enter a valid age.'}), 400
-        password = data.get('password', '')
         if len(password) < 8:
             return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        if len(password.encode('utf-8')) > 72:
+            return jsonify({'error': 'Password must be 72 UTF-8 bytes or fewer.'}), 400
         if not any(c.isupper() for c in password):
             return jsonify({'error': 'Password must contain at least 1 uppercase letter'}), 400
-        if not any(c in '!@#$%^&*()_+-=[]{};\':"|,.<>?\/' for c in password):
+        if not any(c in "!@#$%^&*()_+-=[]{};':\"|,.<>?/" for c in password):
             return jsonify({'error': 'Password must contain at least 1 special character'}), 400
+
+        blood_group = data.get('blood_group')
+        if role == 'donor' and (
+                not isinstance(blood_group, str) or blood_group not in {
+                    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}):
+            return jsonify({'error': 'Please select a valid blood group.'}), 400
+        city = data.get('city', '')
+        address = data.get('address', '')
+        if not isinstance(city, str) or len(city) > 50:
+            return jsonify({'error': 'City must be 50 characters or fewer.'}), 400
+        if not isinstance(address, str) or len(address) > 1000:
+            return jsonify({'error': 'Address must be 1000 characters or fewer.'}), 400
+        latitude, longitude = data.get('latitude'), data.get('longitude')
+        if (latitude is None) != (longitude is None):
+            return jsonify({'error': 'Latitude and longitude must be supplied together.'}), 400
+        if latitude is not None:
+            try:
+                latitude, longitude = float(latitude), float(longitude)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Location coordinates must be valid numbers.'}), 400
+            if (not isfinite(latitude) or not isfinite(longitude)
+                    or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+                return jsonify({'error': 'Location coordinates are out of range.'}), 400
         
         for existing_email, existing_phone in User.query.with_entities(
                 User.email, User.phone).yield_per(500):
@@ -188,7 +230,7 @@ def register():
                 return jsonify({'error': 'An account already exists with this mobile number.'}), 409
         
         user = User(
-            name=data['name'],
+            name=name,
             email=email,
             email_normalized=email,
             phone=phone,
@@ -204,15 +246,16 @@ def register():
         if user.role == 'donor':
             donor = Donor(
                 user_id=user.user_id,
-                blood_group=data.get('blood_group', ''),
-                latitude=data.get('latitude'),
-                longitude=data.get('longitude'),
-                address=data.get('address', ''),
-                city=data.get('city', '')
+                blood_group=blood_group,
+                latitude=latitude,
+                longitude=longitude,
+                address=address,
+                city=city
             )
             db.session.add(donor)
         db.session.commit()
         
+        session.clear()
         session['user_id'] = user.user_id
         
         return jsonify({
@@ -235,7 +278,9 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit login details as a JSON object.'}), 400
 
         if not data.get('email') or not data.get('password'):
             return jsonify({'error': 'Missing email or password'}), 400
@@ -250,6 +295,7 @@ def login():
         if not user or not user.check_password(data['password']):
             return jsonify({'error': 'Invalid email or password'}), 401
 
+        session.clear()
         session['user_id'] = user.user_id
 
         return jsonify({
@@ -404,7 +450,9 @@ def update_donor(donor_id):
         if not donor or donor.user_id != session['user_id']:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        data = request.get_json() or {}
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit donor changes as a JSON object.'}), 400
 
         updated_age = None
         if 'age' in data:
@@ -413,23 +461,39 @@ def update_donor(donor_id):
                 if isinstance(raw_age, bool):
                     raise ValueError
                 numeric_age = float(raw_age)
-                if not numeric_age.is_integer() or numeric_age < 0:
+                if not numeric_age.is_integer() or numeric_age < 0 or numeric_age > 120:
                     raise ValueError
                 updated_age = int(numeric_age)
             except (TypeError, ValueError):
                 return jsonify({'error': 'Please enter a valid age as a whole number.'}), 400
 
         if 'blood_group' in data:
+            if not isinstance(data['blood_group'], str) or data['blood_group'] not in {
+                    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}:
+                return jsonify({'error': 'Please select a valid blood group.'}), 400
             donor.blood_group = data['blood_group']
         if updated_age is not None:
             donor.user.age = updated_age
-        if 'latitude' in data:
-            donor.latitude = data['latitude']
-        if 'longitude' in data:
-            donor.longitude = data['longitude']
+        latitude, longitude = data.get('latitude', donor.latitude), data.get('longitude', donor.longitude)
+        if 'latitude' in data or 'longitude' in data:
+            if (latitude is None) != (longitude is None):
+                return jsonify({'error': 'Latitude and longitude must be supplied together.'}), 400
+            if latitude is not None:
+                try:
+                    latitude, longitude = float(latitude), float(longitude)
+                except (TypeError, ValueError):
+                    return jsonify({'error': 'Location coordinates must be valid numbers.'}), 400
+                if (not isfinite(latitude) or not isfinite(longitude)
+                        or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+                    return jsonify({'error': 'Location coordinates are out of range.'}), 400
+            donor.latitude, donor.longitude = latitude, longitude
         if 'address' in data:
+            if not isinstance(data['address'], str) or len(data['address']) > 1000:
+                return jsonify({'error': 'Address must be 1000 characters or fewer.'}), 400
             donor.address = data['address']
         if 'city' in data:
+            if not isinstance(data['city'], str) or len(data['city']) > 50:
+                return jsonify({'error': 'City must be 50 characters or fewer.'}), 400
             donor.city = data['city']
         
         db.session.commit()
@@ -453,7 +517,9 @@ def toggle_availability(donor_id):
         if not donor or donor.user_id != session['user_id']:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit availability as a JSON object.'}), 400
         requested_availability = data.get('is_available', not donor.is_available)
         if not isinstance(requested_availability, bool):
             return jsonify({'error': 'Availability must be true or false.'}), 400
@@ -481,12 +547,17 @@ def toggle_availability(donor_id):
 def search():
     """Search radius-limited donors using the Network page's ranked graph result."""
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit search criteria as a JSON object.'}), 400
         patient_group = data.get('blood_group')
         latitude = data.get('latitude')
         longitude = data.get('longitude')
         location_text = data.get('location')
-        radius_km = float(data.get('radius_km', 10))
+        try:
+            radius_km = float(data.get('radius_km', 10))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Radius must be a valid number'}), 400
 
         if (latitude is None or longitude is None) and location_text:
             lat, lon = geocode_address(location_text)
@@ -498,10 +569,14 @@ def search():
             longitude = float(longitude)
         except (TypeError, ValueError):
             return jsonify({'error': 'Missing or invalid coordinates'}), 400
-        if not patient_group:
-            return jsonify({'error': 'Blood group is required'}), 400
-        if radius_km < 0:
-            return jsonify({'error': 'Radius must be zero or greater'}), 400
+        if not isinstance(patient_group, str) or patient_group not in {
+                'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}:
+            return jsonify({'error': 'A valid blood group is required'}), 400
+        if (not isfinite(latitude) or not isfinite(longitude)
+                or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+            return jsonify({'error': 'Location coordinates are out of range'}), 400
+        if not isfinite(radius_km) or radius_km < 0 or radius_km > 500:
+            return jsonify({'error': 'Radius must be between 0 and 500 km'}), 400
 
         raw_urgency = data.get('urgency', 2)
         urgency_names = {1: 'normal', 2: 'urgent', 3: 'critical'}
@@ -568,7 +643,13 @@ def get_nearby_donors():
         longitude = request.args.get('longitude')
         location_text = request.args.get('location')
         blood_group = request.args.get('blood_group')
-        radius_km = float(request.args.get('radius_km', 10))
+        try:
+            radius_km = float(request.args.get('radius_km', 10))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Radius must be a valid number'}), 400
+
+        if blood_group not in {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}:
+            return jsonify({'error': 'A valid blood group is required'}), 400
 
         if (not latitude or not longitude) and location_text:
             lat, lon = geocode_address(location_text)
@@ -580,6 +661,12 @@ def get_nearby_donors():
             longitude = float(longitude)
         except (TypeError, ValueError):
             return jsonify({'error': 'Missing or invalid coordinates'}), 400
+
+        if (not isfinite(latitude) or not isfinite(longitude)
+                or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+            return jsonify({'error': 'Location coordinates are out of range'}), 400
+        if not isfinite(radius_km) or radius_km < 0 or radius_km > 500:
+            return jsonify({'error': 'Radius must be between 0 and 500 km'}), 400
 
         donors = find_nearby_donors(blood_group, latitude, longitude, radius_km)
         return jsonify(donors), 200
@@ -723,15 +810,38 @@ def get_network():
 def create_request():
     """Create blood request"""
     try:
-        data = request.get_json()
-        
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit the request as a JSON object.'}), 400
+        blood_group = data.get('blood_group')
+        urgency = data.get('urgency_level', 'normal')
+        location = data.get('location')
+        if not isinstance(blood_group, str) or blood_group not in {
+                'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}:
+            return jsonify({'error': 'Please select a valid blood group.'}), 400
+        if not isinstance(urgency, str) or urgency not in {'normal', 'urgent', 'critical'}:
+            return jsonify({'error': 'Urgency must be normal, urgent, or critical.'}), 400
+        if not isinstance(location, str) or not location.strip() or len(location.strip()) > 1000:
+            return jsonify({'error': 'A valid request location is required.'}), 400
+        latitude, longitude = data.get('latitude'), data.get('longitude')
+        if (latitude is None) != (longitude is None):
+            return jsonify({'error': 'Latitude and longitude must be supplied together.'}), 400
+        if latitude is not None:
+            try:
+                latitude, longitude = float(latitude), float(longitude)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Location coordinates must be valid numbers.'}), 400
+            if (not isfinite(latitude) or not isfinite(longitude)
+                    or not -90 <= latitude <= 90 or not -180 <= longitude <= 180):
+                return jsonify({'error': 'Location coordinates are out of range.'}), 400
+
         blood_request = BloodRequest(
             requester_id=session['user_id'],
-            blood_group=data.get('blood_group'),
-            urgency_level=data.get('urgency_level', 'normal'),
-            location=data.get('location'),
-            latitude=data.get('latitude'),
-            longitude=data.get('longitude')
+            blood_group=blood_group,
+            urgency_level=urgency,
+            location=location.strip(),
+            latitude=latitude,
+            longitude=longitude
         )
         
         db.session.add(blood_request)
@@ -763,12 +873,21 @@ def get_user_requests():
 
 @search_bp.route('/requests/<int:request_id>', methods=['GET'])
 def get_request(request_id):
-    """Get blood request details"""
+    """Get details for a request owned by the signed-in user or an admin."""
     try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
         blood_request = BloodRequest.query.get(request_id)
         
         if not blood_request:
             return jsonify({'error': 'Request not found'}), 404
+
+        user = User.query.get(session['user_id'])
+        if not user:
+            session.clear()
+            return jsonify({'error': 'Unauthorized'}), 401
+        if user.role != 'admin' and blood_request.requester_id != user.user_id:
+            return jsonify({'error': 'Forbidden'}), 403
         
         return jsonify(blood_request.to_dict()), 200
     
@@ -782,14 +901,28 @@ def update_request(request_id):
     try:
         blood_request = BloodRequest.query.get(request_id)
         
-        if not blood_request or blood_request.requester_id != session['user_id']:
+        if not blood_request:
+            return jsonify({'error': 'Request not found'}), 404
+        user = User.query.get(session['user_id'])
+        if not user:
+            session.clear()
+            return jsonify({'error': 'Unauthorized'}), 401
+        if user.role != 'admin' and blood_request.requester_id != user.user_id:
             return jsonify({'error': 'Unauthorized'}), 403
         
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit request changes as a JSON object.'}), 400
         
         if 'status' in data:
+            if (not isinstance(data['status'], str) or
+                    data['status'] not in {'active', 'fulfilled', 'cancelled'}):
+                return jsonify({'error': 'Status must be active, fulfilled, or cancelled.'}), 400
             blood_request.status = data['status']
         if 'urgency_level' in data:
+            if (not isinstance(data['urgency_level'], str) or
+                    data['urgency_level'] not in {'normal', 'urgent', 'critical'}):
+                return jsonify({'error': 'Urgency must be normal, urgent, or critical.'}), 400
             blood_request.urgency_level = data['urgency_level']
         
         db.session.commit()
@@ -888,13 +1021,28 @@ def update_user(user_id):
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        data = request.get_json()
-        
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit user changes as a JSON object.'}), 400
+
         if 'name' in data:
-            user.name = data['name']
+            name = data['name']
+            if not isinstance(name, str) or not name.strip() or len(name.strip()) > 100:
+                return jsonify({'error': 'Name must be between 1 and 100 characters.'}), 400
+            user.name = name.strip()
         if 'email' in data:
-            user.email = data['email']
+            email = normalize_email(data['email'])
+            if len(email) > 100 or not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+                return jsonify({'error': 'Please provide a valid email address.'}), 400
+            for other_email, in User.query.with_entities(User.email).filter(
+                    User.user_id != user.user_id).yield_per(500):
+                if normalize_email(other_email) == email:
+                    return jsonify({'error': 'An account already exists with this email.'}), 409
+            user.email = email
+            user.email_normalized = email
         if 'is_verified' in data:
+            if not isinstance(data['is_verified'], bool):
+                return jsonify({'error': 'Verification status must be true or false.'}), 400
             user.is_verified = data['is_verified']
         
         db.session.commit()
@@ -917,6 +1065,14 @@ def delete_user(user_id):
         
         if not user:
             return jsonify({'error': 'User not found'}), 404
+
+        if user.role == 'admin':
+            return jsonify({'error': 'Administrator accounts cannot be deleted here.'}), 403
+
+        if Report.query.filter_by(reported_user_id=user.user_id).count():
+            return jsonify({
+                'error': 'This account is referenced by reports and cannot be deleted.'
+            }), 409
         
         db.session.delete(user)
         db.session.commit()
@@ -982,8 +1138,14 @@ def handle_report(report_id):
         if not report:
             return jsonify({'error': 'Report not found'}), 404
         
-        data = request.get_json()
-        report.status = data.get('status', 'pending')
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit report changes as a JSON object.'}), 400
+        status = data.get('status', 'pending')
+        if not isinstance(status, str) or status not in {
+                'pending', 'reviewed', 'resolved', 'dismissed'}:
+            return jsonify({'error': 'Please provide a valid report status.'}), 400
+        report.status = status
         
         db.session.commit()
         
@@ -1001,12 +1163,26 @@ def handle_report(report_id):
 def create_report():
     """Create report about user"""
     try:
-        data = request.get_json()
-        
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Please submit the report as a JSON object.'}), 400
+        reported_user_id = data.get('reported_user_id')
+        reason = data.get('reason')
+        if (isinstance(reported_user_id, bool) or
+                not isinstance(reported_user_id, int)):
+            return jsonify({'error': 'A valid user to report is required.'}), 400
+        if reported_user_id == session.get('user_id'):
+            return jsonify({'error': 'You cannot report your own account.'}), 400
+        if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 2000:
+            return jsonify({'error': 'Report reason must be between 1 and 2000 characters.'}), 400
+        reported_user = User.query.get(reported_user_id)
+        if not reported_user:
+            return jsonify({'error': 'User to report was not found.'}), 404
+
         report = Report(
             reporter_id=session['user_id'],
-            reported_user_id=data.get('reported_user_id'),
-            reason=data.get('reason')
+            reported_user_id=reported_user_id,
+            reason=reason.strip()
         )
         
         db.session.add(report)
